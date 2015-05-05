@@ -1,0 +1,14 @@
+{
+  "name": "wtfnode",
+  "version": "0.1.0",
+  "description": "Utility to help find out why Node isn't exiting",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Kris Reeves",
+  "bin": {
+    "wtfnode": "index.js"
+  },
+  "license": "ISC"
+}
