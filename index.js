@@ -30,7 +30,13 @@ var Socket, Server, Timer;
     L.append = function (list, item) {
         if (list instanceof Timer) {
             if (item && typeof item._onTimeout === 'function') {
-                item._onTimeout.__callSite = item._repeat ? __stack[5] : __stack[6];
+                var stack = __stack;
+                for (var i = 5; i < stack.length; i++) {
+                    if (/\//.test(stack[i].file)) {
+                        item._onTimeout.__callSite = stack[i];
+                        break;
+                    }
+                }
             } else {
                 console.log('Uncertain what to do with item:', item);
             }
@@ -98,7 +104,7 @@ process.on('SIGINT', function () {
             if (connectListeners) {
                 console.log('    - Listeners:');
                 connectListeners.forEach(function (fn) {
-                    console.log('      - %s: %s @ %s:%d', 'connect', fn.name, fn.__callSite.file, fn.__callSite.line);
+                    console.log('      - %s: %s @ %s:%d', 'connect', fn.name || 'anonymous', fn.__callSite.file, fn.__callSite.line);
                 });
             }
         });
@@ -115,7 +121,7 @@ process.on('SIGINT', function () {
                 console.log('    - Listeners:');
                 connectListeners.forEach(function (fn) {
                     //console.log(fn.__fullStack);
-                    console.log('      - %s: %s @ %s:%d', 'connection', fn.name, fn.__callSite.file, fn.__callSite.line);
+                    console.log('      - %s: %s @ %s:%d', 'connection', fn.name || 'anonymous', fn.__callSite.file, fn.__callSite.line);
                 });
             }
         });
