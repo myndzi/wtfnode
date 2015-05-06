@@ -81,7 +81,8 @@ function formatTime(t) {
     return Math.floor(t) + ' ' + labels[i-1];
 };
 
-process.on('SIGINT', function () {
+
+function dump() {
     console.log('[WTF Node?] open handles:');
     
     var sockets = [ ], servers = [ ], _timers = [ ], other = [ ];
@@ -158,11 +159,24 @@ process.on('SIGINT', function () {
             else { console.log('  - %s', o); }
         });
     }
-    
-    process.exit();
-});
+}
+
+function init() {
+    process.on('SIGINT', function () {
+        try { dump(); }
+        catch (e) { console.error(e); }
+        process.exit();
+    });
+}
+
+module.exports = {
+    dump: dump,
+    init: init
+};
 
 if (module === require.main && process.argv[2]) {
+    init();
+    
     var fn = process.argv[2], PATH = require('path');
     if (!/^\//.test(fn)) {
         fn = PATH.resolve(process.cwd(), fn);

@@ -34,15 +34,21 @@ This package came out of frustration with trying to track down the cause of stal
 
 You'll see that the function name listed under timers is `wrapper` -- this is the wrapper around interval timers as created by setInterval. I can still get a source line, but I can't get the original function name out, unfortunately. Caveats like this may exist in other places, too.
 
-# Usage
+# Command line usage
 
 You can install as a global module (`npm install -g wtfnode`) and call a node script manually: `wtfnode <yourscript>`
 
-If you do this, `wtfnode` will load itself, then `require()` the script you specified.
+If you do this, `wtfnode` will load itself, then `require()` the script you specified. When you are ready, send SIGINT (Ctrl+C). The process will exit, and the active handles at the time of exit will be printed out.
 
-Alternately, you can load it as a module, using `require()` at the entry point of your own app: `require('wtfnode')`; if you do this, you only need install it locally.
+# Module usage
 
-Once `wtfnode` is loaded, all you need do is send SIGINT (Ctrl+C). The process will exit, and the active handles at the time of exit will be printed out.
+Install as a local module (`npm install wtfnode`).
+
+Require the module: `var wtf = require('wtfnode');`
+
+When you are ready, call `wtf.dump()` to dump open handles. Note that if you call this from a timer, the timer itself may show up! 
+
+**Important**: Require at the entry point of your application. You must do this before loading / referencing even native node modules, or certain hooks may not be effective.
 
 # Caution
 
