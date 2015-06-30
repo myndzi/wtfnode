@@ -51,13 +51,13 @@ var Socket, Server, Timer;
     EventEmitter.prototype.addListener = function (type, listener) {
         var stack = __stack;
         listener.__fullStack = stack;
-        if (stack[3].file === 'events.js') {
+        if (stack[3] && stack[3].file === 'events.js') {
             listener.__callSite = stack[6]; // inline listener binding on net.connect
         }
-        else if (/express\/lib\/application\.js$/.test(stack[4].file)) {
+        else if (stack[4] && /express\/lib\/application\.js$/.test(stack[4].file)) {
             listener.__callSite = stack[5]; // express 4
         }
-        else if (stack[3].file === 'http.js') {
+        else if (stack[3] && stack[3].file === 'http.js') {
             listener.__callSite = stack[4]; // http.createServer(fn)
         }
         else {
