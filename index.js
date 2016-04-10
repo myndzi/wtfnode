@@ -4,6 +4,11 @@
 
 var Socket, Server, Timer;
 
+function timerCallback(thing) {
+    if (typeof thing._onTimeout === 'function') { return '_onTimeout'; }
+    if (typeof thing._onImmediate === 'function') { return '_onImmediate'; }
+}
+
 // hook stuff
 (function () {
     var _Error_prepareStackTrace = Error.prepareStackTrace;
@@ -28,12 +33,12 @@ var Socket, Server, Timer;
     var L = require('_linklist');
     var _L_append = L.append;
     L.append = function (list, item) {
-        if (list instanceof Timer) {
-            if (item && typeof item._onTimeout === 'function') {
+        if (list instanceof Timer || (typeof list === 'object' && list.hasOwnProperty('_idleNext'))) {
+            if (item && timerCallback(item)) {
                 var stack = __stack;
                 for (var i = 5; i < stack.length; i++) {
                     if (/\//.test(stack[i].file)) {
-                        item._onTimeout.__callSite = stack[i];
+                        item[timerCallback(item)].__callSite = stack[i];
                         break;
                     }
                 }
@@ -81,18 +86,39 @@ function formatTime(t) {
     return Math.floor(t) + ' ' + labels[i-1];
 };
 
+function getCallsite(fn) {
+    if (!fn.__callSite) {
+        console.warn('Unable to determine callsite for function "'+(fn.name.trim() || 'unknown')+'". Did you require `wtfnode` at the top of your entry point?');
+        return { file: 'unknown', line: 'unknown' };
+    }
+    return fn.__callSite;
+};
 
 function dump() {
     console.log('[WTF Node?] open handles:');
     
-    var sockets = [ ], servers = [ ], _timers = [ ], other = [ ];
+    var sockets = [ ], fds = [ ], servers = [ ], _timers = [ ], other = [ ];
     process._getActiveHandles().forEach(function (h) {
-        if (h instanceof Socket) { sockets.push(h); }
+        if (h instanceof Socket) {
+          if (h.fd) { fds.push(h); }
+          else { sockets.push(h); }
+        }
         else if (h instanceof Server) { servers.push(h); }
         else if (h instanceof Timer) { _timers.push(h); }
         else { other.push(h); }
     });
     
+    if (fds.length) {
+        console.log('- File descriptors: (note: stdio won\'t keep your program running)');
+        fds.forEach(function (s) {
+            var str = '  - fd '+s.fd;
+            if (s.isTTY) { str += ' (tty)'; }
+            if (s._isStdio) { str += ' (stdio)'; }
+            if (s.destroyed) { str += ' (destroyed)'; }
+            console.log(str);
+        });
+    }
+
     if (sockets.length) {
         console.log('- Sockets:');
         sockets.forEach(function (s) {
@@ -105,7 +131,8 @@ function dump() {
             if (connectListeners) {
                 console.log('    - Listeners:');
                 connectListeners.forEach(function (fn) {
-                    console.log('      - %s: %s @ %s:%d', 'connect', fn.name || 'anonymous', fn.__callSite.file, fn.__callSite.line);
+                    var callSite = getCallsite(fn);
+                    console.log('      - %s: %s @ %s:%d', 'connect', fn.name || 'anonymous', callSite.file, callSite.line);
                 });
             }
         });
@@ -121,8 +148,8 @@ function dump() {
             if (connectListeners) {
                 console.log('    - Listeners:');
                 connectListeners.forEach(function (fn) {
-                    //console.log(fn.__fullStack);
-                    console.log('      - %s: %s @ %s:%d', 'connection', fn.name || 'anonymous', fn.__callSite.file, fn.__callSite.line);
+                    var callSite = getCallsite(fn);
+                    console.log('      - %s: %s @ %s:%d', 'connection', fn.name || 'anonymous', callSite.file, callSite.line);
                 });
             }
         });
@@ -130,24 +157,39 @@ function dump() {
     
     var timers = [ ];
     _timers.forEach(function (t) {
-        var timer = t;
-        while ((timer = timer._idleNext)) {
-            if (timer === t) {
-                break;
-            }
-            if (timer._onTimeout && timers.indexOf(t) === -1) {
-                timers.push(timer);
-            }
+        if (t._list) {
+            // node v5ish behavior
+            var timer = t._list;
+            do {
+                if (timerCallback(timer) && timers.indexOf(timer) === -1) {
+                    timers.push(timer);
+                }
+                timer = timer._idleNext;
+            } while (!timer.constructor || timer !== t._list);
+        } else {
+            // node 0.12ish behavior
+            _timers.forEach(function (t) {
+                var timer = t;
+                while ((timer = timer._idleNext)) {
+                    if (timer === t) {
+                        break;
+                    }
+                    if (timerCallback(timer) && timers.indexOf(timer) === -1) {
+                        timers.push(timer);
+                    }
+                }
+                
+            });
         }
-        
     });
     
     if (timers.length) {
         console.log('- Timers:');
         
         timers.forEach(function (t) {
-            var fn = t._onTimeout;
-            console.log('  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name, fn.__callSite.file, fn.__callSite.line);
+            var fn = t._onTimeout,
+                callSite = getCallsite(fn);
+            console.log('  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name, callSite.file, callSite.line);
         });
     }
     
