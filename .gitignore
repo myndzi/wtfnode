@@ -2,4 +2,7 @@
 !.gitignore
 !package.json
 !index.js
+!kitchensink.js
 !README.md
+!key.pem
+!key-cert.pem
