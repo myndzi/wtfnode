@@ -18,15 +18,12 @@ function doStuff() {
   setTimeout(function () { }, 1000);
 
   // servers
-  var httpServer = http
-      .createServer(function httpRequestListener() { }) 
-      .listen(function httpConnectionListener() { });
+  var httpServer = http.createServer(function httpRequestListener() { }).listen();
 
   var httpsServer = https.createServer({
       key: fs.readFileSync('./key.pem'),
       cert: fs.readFileSync('./key-cert.pem')
-  }, function httpsRequestListener() { })
-      .listen(function httpsConnectionListener() { });
+  }, function httpsRequestListener() { }).listen();
   
   var tcpServer = net.createServer(function netConnectionListener() { })
       .listen(function netListenListener() { });

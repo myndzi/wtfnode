@@ -30,12 +30,71 @@ function timerCallback(thing) {
         }
     });
 
-    var GLOBALS = { };
-    function wrapFn(fn) {
-        return function () {
+    function findCallsite(stack) {
+        for (var i = 0; i < stack.length; i++) {
+            if (stack[i].file !== __filename && /\//.test(stack[i].file)) {
+              return stack[i];
+            }
+        }
+        return null;
+    }
+
+    // wraps a function with a proxy function holding the first userland call
+    // site in the stack and some other information, for later display
+    // this will probably screw up any code that depends on the callbacks having
+    // a 'name' or 'length' property that is accurate, but there doesn't appear
+    // to be a way around that :(
+    var consolelog = console.log.bind(console);
+    function wrapFn(fn, name, isInterval) {
+        if (typeof fn !== 'function') { return fn; }
+
+        var wrapped = function () {
             return fn.apply(this, arguments);
         };
+
+        var stack = __stack;
+
+        // this should inherit 'name' and 'length' and any other properties that have been assigned
+        Object.getOwnPropertyNames(fn).forEach(function (key) {
+            try {
+                Object.defineProperty(wrapped, key, Object.getOwnPropertyDescriptor(fn, key));
+            } catch (e) {
+                // some properties cannot be redefined, not much we can do about it
+            }
+        });
+
+        // we use these later to identify the source information about an open handle
+        Object.defineProperties(wrapped, {
+            __fullStack: {
+                enumerable: false,
+                configurable: false,
+                writable: false,
+                value: stack
+            },
+            __name: {
+                enumerable: false,
+                configurable: false,
+                writable: false,
+                value: name || '(anonymous)'
+            },
+            __callSite: {
+                enumerable: false,
+                configurable: false,
+                writable: false,
+                value: findCallsite(stack)
+            },
+            __isInterval: {
+                enumerable: false,
+                configurable: false,
+                writable: false,
+                value: isInterval
+            }
+        });
+
+        return wrapped;
     }
+
+    var GLOBALS = { };
     function wrapTimer(type, isInterval) {
         GLOBALS[type] = global[type];
         global[type] = function () {
@@ -44,19 +103,8 @@ function timerCallback(thing) {
             
             var ret = GLOBALS[type].apply(this, args);
             var cbkey = timerCallback(ret);
-            
-            if (typeof ret[cbkey] === 'function') {
-                var stack = __stack, fnName = args[0].name;
-
-                for (var i = 2; i < stack.length; i++) {
-                    if (/\//.test(stack[i].file)) {
-                        ret[cbkey] = wrapFn(ret[cbkey]);
-                        ret[cbkey].__callSite = stack[i];
-                        ret[cbkey].__name = fnName || 'anonymous';
-                        ret[cbkey].__isInterval = isInterval;
-                        break;
-                    }
-                }
+            if (ret[cbkey]) {
+                ret[cbkey] = wrapFn(ret[cbkey], args[0].name, isInterval);
             }
 
             return ret;
@@ -76,18 +124,7 @@ function timerCallback(thing) {
         while (i--) { args[i] = arguments[i]; }
         
         if (typeof args[1] === 'function') {
-            var fnName = args[1].name, listener = wrapFn(args[1]);
-            listener.__fullStack = stack;
-          
-            for (var i = 2; i < stack.length; i++) {
-                if (/\//.test(stack[i].file)) {
-                    listener.__name = fnName || 'anonymous';
-                    listener.__callSite = stack[i];
-                    break;
-                }
-            }
-            
-            args[1] = listener;
+            args[1] = wrapFn(args[1], args[1].name, null);
         }
         
         return _EventEmitter_addListener.apply(this, args);
@@ -130,12 +167,6 @@ function getCallsite(fn) {
     }
     return fn.__callSite;
 };
-
-// some of the handles in older nodes (like 0.10) aren't functions
-// so instanceof will throw
-function instanceCheck(handle, cls) {
-    return Object.getPrototypeOf(handle) === cls;
-}
 
 function dump() {
     console.log('[WTF Node?] open handles:');
@@ -205,7 +236,7 @@ function dump() {
                 console.log('    - Listeners:');
                 connectListeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
-                    console.log('      - %s: %s @ %s:%d', 'connect', fn.name || 'anonymous', callSite.file, callSite.line);
+                    console.log('      - %s: %s @ %s:%d', 'connect', fn.name || '(anonymous)', callSite.file, callSite.line);
                 });
             }
         });
@@ -230,23 +261,23 @@ function dump() {
                 }
                 throw e;
             }
-          
-            
+
             console.log('  - %s:%s (%s)', a.address, a.port, type);
 
-            var listeners = s.listeners('connection').map(function (fn) {
-                return { type: 'connection', fn: fn };
-            }).concat(s.listeners('request').map(function (fn) {
-                return { type: 'request', fn: fn };
-            })).concat(s.listeners('message').map(function (fn) {
-                return { type: 'message', fn: fn };
-            }));
+            var eventType = (
+              type === 'HTTP' || type === 'HTTPS' ? 'request' :
+              type === 'TCP' || type === 'TLS' ? 'connection' :
+              type === 'UDP' ? 'message' :
+              'connection'
+            );
+
+            var listeners = s.listeners(eventType);
             
             if (listeners && listeners.length) {
                 console.log('    - Listeners:');
-                listeners.forEach(function (obj) {
-                    var callSite = getCallsite(obj.fn);
-                    console.log('      - %s: %s @ %s:%d', obj.type, obj.fn.__name || obj.fn.name || 'anonymous', callSite.file, callSite.line);
+                listeners.forEach(function (fn) {
+                    var callSite = getCallsite(fn);
+                    console.log('      - %s: %s @ %s:%d', eventType, fn.__name || fn.name || '(anonymous)', callSite.file, callSite.line);
                 });
             }
         });
