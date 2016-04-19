@@ -177,7 +177,7 @@ function dump() {
         if (h instanceof Socket) {
             // stdin, stdout, etc. are now instances of socket and get listed in open handles
             // todo: a more specific/better way to identify them than the 'fd' property
-            if (h.fd) { fds.push(h); }
+            if (h.hasOwnProperty('fd')) { fds.push(h); }
             else { sockets.push(h); }
         }
         else if (h instanceof Server) { servers.push(h); }
