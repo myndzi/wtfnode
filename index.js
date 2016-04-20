@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 'use strict';
+var path = require('path');
 
 var Socket, dgramSocket, Server, TlsServer, HttpServer, HttpsServer, Timer, ChildProcess;
 
@@ -32,7 +33,10 @@ function timerCallback(thing) {
 
     function findCallsite(stack) {
         for (var i = 0; i < stack.length; i++) {
-            if (stack[i].file !== __filename && /\//.test(stack[i].file)) {
+            // Ignore frames from:
+            //  - wtfnode by excluding __filename
+            //  - builtins by excluding files with no path separator
+            if (stack[i].file !== __filename && stack[i].file.indexOf(path.sep) !== -1) {
               return stack[i];
             }
         }
@@ -90,7 +94,6 @@ function timerCallback(thing) {
                 value: isInterval
             }
         });
-
         return wrapped;
     }
 
@@ -215,10 +218,9 @@ function dump() {
         processes.forEach(function (cp) {
             var fds = [ ];
             console.log('  - PID %s', cp.pid);
-            
             if (cp.stdio && cp.stdio.length) {
                 cp.stdio.forEach(function (s) {
-                    if (s._handle && s._handle.fd) { fds.push(s._handle.fd); }
+                    if (s && s._handle && s._handle.fd) { fds.push(s._handle.fd); }
                     var idx = sockets.indexOf(s);
                     if (idx > -1) {
                         sockets.splice(idx, 1);
