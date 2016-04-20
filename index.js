@@ -1,9 +1,16 @@
 #!/usr/bin/env node
 
 'use strict';
-var path = require('path');
-
-var Socket, dgramSocket, Server, TlsServer, HttpServer, HttpsServer, Timer, ChildProcess;
+// Don't require these until we've hooked certain builtins
+var ChildProcess,
+    dgramSocket,
+    HttpServer,
+    HttpsServer,
+    path,
+    Server,
+    Socket,
+    Timer,
+    TlsServer;
 
 function timerCallback(thing) {
     if (typeof thing._repeat === 'function') { return '_repeat'; }
@@ -134,13 +141,18 @@ function timerCallback(thing) {
     };
 })();
 
-Socket = require('net').Socket;
-Server = require('net').Server;
-TlsServer = require('tls').Server;
+// path must be required before the rest of these
+// as some of them invoke our hooks on load which
+// requires path to be available to the above code
+path = require('path');
+
+dgramSocket = require('dgram').Socket;
 HttpServer = require('http').Server;
 HttpsServer = require('https').Server;
+Server = require('net').Server;
+Socket = require('net').Socket;
 Timer = process.binding('timer_wrap').Timer;
-dgramSocket = require('dgram').Socket;
+TlsServer = require('tls').Server;
 
 ChildProcess = (function () {
     var ChildProcess = require('child_process').ChildProcess;
