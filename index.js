@@ -190,13 +190,23 @@ function dump() {
     });
     
     if (fds.length) {
-        console.log('- File descriptors: (note: stdio won\'t keep your program running)');
+        console.log('- File descriptors: (note: stdio always exists)');
         fds.forEach(function (s) {
             var str = '  - fd '+s.fd;
             if (s.isTTY) { str += ' (tty)'; }
             if (s._isStdio) { str += ' (stdio)'; }
             if (s.destroyed) { str += ' (destroyed)'; }
             console.log(str);
+
+            // this event will source the origin of a readline instance, kind of indirectly
+            var keypressListeners = s.listeners('keypress');
+            if (keypressListeners && keypressListeners.length) {
+                console.log('    - Listeners:');
+                keypressListeners.forEach(function (fn) {
+                    var callSite = getCallsite(fn);
+                    console.log('      - %s: %s @ %s:%d', 'keypress', fn.name || '(anonymous)', callSite.file, callSite.line);
+                });
+            }
         });
     }
     
