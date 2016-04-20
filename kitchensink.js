@@ -6,7 +6,8 @@ var fs = require('fs'),
     tls = require('tls'),
     http = require('http'),
     https = require('https'),
-    dgram = require('dgram');
+    dgram = require('dgram'),
+    readline = require('readline');
 
 function foo() { };
 
@@ -24,7 +25,7 @@ function doStuff() {
       key: fs.readFileSync('./key.pem'),
       cert: fs.readFileSync('./key-cert.pem')
   }, function httpsRequestListener() { }).listen();
-  
+
   var tcpServer = net.createServer(function netConnectionListener() { })
       .listen(function netListenListener() { });
 
@@ -36,6 +37,11 @@ function doStuff() {
 
   http.createServer();
   net.createServer();
+
+  readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
 
   wtf.dump();
   process.exit();
