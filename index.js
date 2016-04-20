@@ -220,7 +220,7 @@ function dump() {
             console.log('  - PID %s', cp.pid);
             if (cp.stdio && cp.stdio.length) {
                 cp.stdio.forEach(function (s) {
-                    if (s && s._handle && s._handle.fd) { fds.push(s._handle.fd); }
+                    if (s && s._handle && (s._handle.fd != null)) { fds.push(s._handle.fd); }
                     var idx = sockets.indexOf(s);
                     if (idx > -1) {
                         sockets.splice(idx, 1);
@@ -238,7 +238,7 @@ function dump() {
                 console.log('  - (?:?) -> %s:? (destroyed)', s._host);
             } else if (s.localAddress) {
                 console.log('  - %s:%s -> %s:%s', s.localAddress, s.localPort, s.remoteAddress, s.remotePort);
-            } else if (s._handle && s._handle.fd) {
+            } else if (s._handle && (s._handle.fd != null)) {
                 console.log('  - fd %s', s._handle.fd);
             } else {
                 console.log('  - unknown socket');
