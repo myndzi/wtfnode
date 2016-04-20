@@ -38,7 +38,9 @@ You'll see that the function name listed under timers is `wrapper` -- this is th
 
 You can install as a global module (`npm install -g wtfnode`) and call a node script manually: `wtfnode <yourscript>`
 
-If you do this, `wtfnode` will load itself, then `require()` the script you specified. When you are ready, send SIGINT (Ctrl+C). The process will exit, and the active handles at the time of exit will be printed out.
+If you do this, `wtfnode` will load itself, then forward control to the script you specified as if you had run `node <yourscript>`. When you are ready, send SIGINT (Ctrl+C). The process will exit, and the active handles at the time of exit will be printed out.
+
+You can tunnel parameters to your script by preceding them with a `--` delimiter: `wtfnode <yourscript> -- <yourargs> ...`
 
 # Module usage
 
