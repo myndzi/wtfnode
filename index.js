@@ -400,13 +400,10 @@ module.exports = {
 
 function parseArgs() {
     if (process.argv.length < 3) {
-        throw new Error('Usage: wtfnode <yourscript> -- <yourargs> ...');
+        console.error('Usage: wtfnode <yourscript> <yourargs> ...');
+        process.exit(1);
     }
-    var moduleParams = [];
-    var delimIndex = process.argv.indexOf('--');
-    if (delimIndex !== -1) {
-        moduleParams = process.argv.slice(delimIndex + 1);
-    }
+    var moduleParams = process.argv.slice(3);
     var modulePath = path.resolve(process.cwd(), process.argv[2]);
     return [].concat(process.argv[0], modulePath, moduleParams);
 }
