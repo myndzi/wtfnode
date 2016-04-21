@@ -1,8 +1,16 @@
 #!/usr/bin/env node
 
 'use strict';
-
-var Socket, dgramSocket, Server, TlsServer, HttpServer, HttpsServer, Timer, ChildProcess;
+// Don't require these until we've hooked certain builtins
+var ChildProcess,
+    dgramSocket,
+    HttpServer,
+    HttpsServer,
+    path,
+    Server,
+    Socket,
+    Timer,
+    TlsServer;
 
 function timerCallback(thing) {
     if (typeof thing._repeat === 'function') { return '_repeat'; }
@@ -32,7 +40,10 @@ function timerCallback(thing) {
 
     function findCallsite(stack) {
         for (var i = 0; i < stack.length; i++) {
-            if (stack[i].file !== __filename && /\//.test(stack[i].file)) {
+            // Ignore frames from:
+            //  - wtfnode by excluding __filename
+            //  - builtins by excluding files with no path separator
+            if (stack[i].file !== __filename && stack[i].file.indexOf(path.sep) !== -1) {
               return stack[i];
             }
         }
@@ -90,7 +101,6 @@ function timerCallback(thing) {
                 value: isInterval
             }
         });
-
         return wrapped;
     }
 
@@ -131,13 +141,18 @@ function timerCallback(thing) {
     };
 })();
 
-Socket = require('net').Socket;
-Server = require('net').Server;
-TlsServer = require('tls').Server;
+// path must be required before the rest of these
+// as some of them invoke our hooks on load which
+// requires path to be available to the above code
+path = require('path');
+
+dgramSocket = require('dgram').Socket;
 HttpServer = require('http').Server;
 HttpsServer = require('https').Server;
+Server = require('net').Server;
+Socket = require('net').Socket;
 Timer = process.binding('timer_wrap').Timer;
-dgramSocket = require('dgram').Socket;
+TlsServer = require('tls').Server;
 
 ChildProcess = (function () {
     var ChildProcess = require('child_process').ChildProcess;
@@ -215,10 +230,9 @@ function dump() {
         processes.forEach(function (cp) {
             var fds = [ ];
             console.log('  - PID %s', cp.pid);
-            
             if (cp.stdio && cp.stdio.length) {
                 cp.stdio.forEach(function (s) {
-                    if (s._handle && s._handle.fd) { fds.push(s._handle.fd); }
+                    if (s && s._handle && (s._handle.fd != null)) { fds.push(s._handle.fd); }
                     var idx = sockets.indexOf(s);
                     if (idx > -1) {
                         sockets.splice(idx, 1);
@@ -236,7 +250,7 @@ function dump() {
                 console.log('  - (?:?) -> %s:? (destroyed)', s._host);
             } else if (s.localAddress) {
                 console.log('  - %s:%s -> %s:%s', s.localAddress, s.localPort, s.remoteAddress, s.remotePort);
-            } else if (s._handle && s._handle.fd) {
+            } else if (s._handle && (s._handle.fd != null)) {
                 console.log('  - fd %s', s._handle.fd);
             } else {
                 console.log('  - unknown socket');
