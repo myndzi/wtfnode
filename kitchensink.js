@@ -44,6 +44,8 @@ function doStuff() {
   });
 
   wtf.dump();
+
+  console.error('Argv[2..]:', process.argv.slice(2));
   process.exit();
 }
 
