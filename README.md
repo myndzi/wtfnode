@@ -54,7 +54,7 @@ When you are ready, call `wtf.dump()` to dump open handles. Note that if you cal
 
 This module wraps and depends on private Node methods. It is in no way guaranteed to work now or ever. If it doesn't work for you, first make sure it is loaded before any other module: some modules take references to things that get replaced/wrapped, so it is required that `wtfnode` gets first dibs on everything.
 
-It currently does something useful under Node 0.12.2. If it stops doing something useful in the future, please post an issue, preferably with a reproducible test script and detailed version information, and I'll try and make it work properly again.
+It currently does something useful under Node 0.10 through 5.11. If it stops doing something useful in the future, please post an issue, preferably with a reproducible test script and detailed version information, and I'll try and make it work properly again.
 
 # Testing
 
