@@ -398,14 +398,24 @@ module.exports = {
     init: init
 };
 
-if (module === require.main && process.argv[2]) {
-    init();
-    
-    var fn = process.argv[2], PATH = require('path');
-    if (!/^\//.test(fn)) {
-        fn = PATH.resolve(process.cwd(), fn);
+function parseArgs() {
+    if (process.argv.length < 3) {
+        console.error('Usage: wtfnode <yourscript> <yourargs> ...');
+        process.exit(1);
     }
-    
-    var ret = require(fn);
-    if (typeof ret === 'function') { ret(); }
+    var moduleParams = process.argv.slice(3);
+    var modulePath = path.resolve(process.cwd(), process.argv[2]);
+    return [].concat(process.argv[0], modulePath, moduleParams);
+}
+
+if (module === require.main) {
+    init();
+    // The goal here is to invoke the given module in a form that is as
+    // identical as possible to invoking `node <the_module>` directly.
+    // This means massaging process.argv and using Module.runMain to convince
+    // the module that it is the 'main' module.
+    var newArgv = parseArgs(process.argv)
+    var Module = require('module');
+    process.argv = newArgv;
+    Module.runMain();
 }
