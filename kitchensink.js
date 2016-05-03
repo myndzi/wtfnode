@@ -1,13 +1,15 @@
 var wtf = require('./index');
 
-var fs = require('fs'),
+var assert = require('assert');
     cp = require('child_process'),
-    net = require('net'),
-    tls = require('tls'),
+    dgram = require('dgram'),
+    EventEmitter = require('events'),
+    fs = require('fs'),
     http = require('http'),
     https = require('https'),
-    dgram = require('dgram'),
-    readline = require('readline');
+    net = require('net'),
+    readline = require('readline'),
+    tls = require('tls');
 
 function foo() { };
 
@@ -48,6 +50,23 @@ function doStuff() {
   console.error('Argv[2..]:', process.argv.slice(2));
   process.exit();
 }
+
+function testEventEmitter() {
+  var emitter = new EventEmitter();
+  var numTimesEventHandlerWasCalled = 0;
+  var myEventHandler = function() {
+    numTimesEventHandlerWasCalled += 1;
+  };
+  emitter.addListener('myEvent', myEventHandler);
+  emitter.emit('myEvent');
+  assert(numTimesEventHandlerWasCalled === 1);
+  // Check that removeListener still works:
+  emitter.removeListener('myEvent', myEventHandler);
+  emitter.emit('myEvent');
+  assert(numTimesEventHandlerWasCalled === 1);
+}
+
+testEventEmitter();
 
 // child processes
 var proc = cp.spawn('cat');
