@@ -22,7 +22,7 @@ function timerCallback(thing) {
 (function () {
     var _Error_prepareStackTrace = Error.prepareStackTrace;
     var hooked = function (_, stack) { return stack; };
-    
+
     Object.defineProperty(global, '__stack', {
         get: function(){
             Error.prepareStackTrace = hooked
@@ -56,12 +56,20 @@ function timerCallback(thing) {
     // a 'name' or 'length' property that is accurate, but there doesn't appear
     // to be a way around that :(
     var consolelog = console.log.bind(console);
-    function wrapFn(fn, name, isInterval) {
+    function wrapFn(fn, name, isInterval, callback) {
         if (typeof fn !== 'function') { return fn; }
 
-        var wrapped = function () {
-            return fn.apply(this, arguments);
-        };
+        var wrapped = (
+            typeof callback === 'function' ?
+            function () {
+                callback.call(this, wrapped);
+                return fn.apply(this, arguments);
+            }
+            :
+            function () {
+                return fn.apply(this, arguments);
+            }
+        );
 
         // This is intended to interact "cleverly" with node's EventEmitter logic.
         // EventEmitter itself sometimes wraps the event handler callbacks to implement
@@ -69,7 +77,6 @@ function timerCallback(thing) {
         // In order for removeListener to still work when called with the original unwrapped function
         // a .listener member is added to the stored callback which contains the original unwrapped function
         // and the removeListener logic checks this member as well to match wrapped listeners.
-        wrapped.listener = fn;
 
         var stack = __stack;
 
@@ -118,7 +125,7 @@ function timerCallback(thing) {
         global[type] = function () {
             var args = [ ], i = arguments.length;
             while (i--) { args[i] = arguments[i]; }
-            
+
             var ret = GLOBALS[type].apply(this, args);
             var cbkey = timerCallback(ret);
             if (ret[cbkey]) {
@@ -136,15 +143,29 @@ function timerCallback(thing) {
 
     EventEmitter.prototype.on =
     EventEmitter.prototype.addListener = function (/*type, listener*/) {
-        var stack = __stack;
-      
-        var args = [ ], i = arguments.length;
+        var args = [ ], i = arguments.length, fn;
         while (i--) { args[i] = arguments[i]; }
-        
+
         if (typeof args[1] === 'function') {
             args[1] = wrapFn(args[1], args[1].name, null);
+            args[1].listener = arguments[1];
         }
-        
+
+        return _EventEmitter_addListener.apply(this, args);
+    };
+
+    EventEmitter.prototype.once = function (/*type, listener*/) {
+        var args = [ ], i = arguments.length, fn;
+        while (i--) { args[i] = arguments[i]; }
+
+        var type = args[0], fn = args[1];
+        if (typeof fn === 'function') {
+            args[1] = wrapFn(fn, fn.name, null, function () {
+                this.removeListener(type, fn);
+            });
+            args[1].listener = arguments[1];
+        }
+
         return _EventEmitter_addListener.apply(this, args);
     };
 })();
@@ -170,7 +191,7 @@ ChildProcess = (function () {
         var cp = require('child_process').spawn('true', { stdio: 'ignore' });
         ChildProcess = cp.constructor;
     }
-    
+
     return ChildProcess;
 })();
 
@@ -178,7 +199,7 @@ function formatTime(t) {
     var labels = ['ms', 's', 'min', 'hr'],
         units = [1, 1000, 60, 60],
         i = 0;
-    
+
     while (i < units.length && t / units[i] > 1) { t /= units[i++]; }
     return Math.floor(t) + ' ' + labels[i-1];
 };
@@ -193,7 +214,7 @@ function getCallsite(fn) {
 
 function dump() {
     console.log('[WTF Node?] open handles:');
-  
+
     // sort the active handles into different types for logging
     var sockets = [ ], fds = [ ], servers = [ ], _timers = [ ], processes = [ ], other = [ ];
     process._getActiveHandles().forEach(function (h) {
@@ -207,11 +228,11 @@ function dump() {
         else if (h instanceof dgramSocket) { servers.push(h); }
         else if (h instanceof Timer) { _timers.push(h); }
         else if (h instanceof ChildProcess) { processes.push(h); }
-        
+
         // catchall
         else { other.push(h); }
     });
-    
+
     if (fds.length) {
         console.log('- File descriptors: (note: stdio always exists)');
         fds.forEach(function (s) {
@@ -232,7 +253,7 @@ function dump() {
             }
         });
     }
-    
+
     if (processes.length) {
         console.log('- Child processes');
         processes.forEach(function (cp) {
@@ -273,7 +294,7 @@ function dump() {
             }
         });
     }
-    
+
     if (servers.length) {
         console.log('- Servers:');
         servers.forEach(function (s) {
@@ -304,7 +325,7 @@ function dump() {
             );
 
             var listeners = s.listeners(eventType);
-            
+
             if (listeners && listeners.length) {
                 console.log('    - Listeners:');
                 listeners.forEach(function (fn) {
@@ -314,7 +335,7 @@ function dump() {
             }
         });
     }
-    
+
     var timers = [ ], intervals = [ ];
     _timers.forEach(function (t) {
         var timer = t._list, cb, cbkey;
@@ -350,14 +371,14 @@ function dump() {
                         }
                     }
                 }
-                
+
             });
         }
     });
-    
+
     if (timers.length) {
         console.log('- Timers:');
-        
+
         timers.forEach(function (t) {
             var fn = t[timerCallback(t)],
                 callSite = getCallsite(fn);
@@ -368,10 +389,10 @@ function dump() {
             }
         });
     }
-    
+
     if (intervals.length) {
         console.log('- Intervals:');
-        
+
         intervals.forEach(function (t) {
             var fn = t[timerCallback(t)],
                 callSite = getCallsite(fn);
@@ -382,7 +403,7 @@ function dump() {
             }
         });
     }
-    
+
     if (other.length) {
         console.log('- Others:');
         other.forEach(function (o) {

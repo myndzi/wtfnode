@@ -3,6 +3,7 @@
 !package.json
 !index.js
 !kitchensink.js
+!test.js
 !README.md
 !key.pem
 !key-cert.pem

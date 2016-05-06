@@ -51,23 +51,6 @@ function doStuff() {
   process.exit();
 }
 
-function testEventEmitter() {
-  var emitter = new EventEmitter();
-  var numTimesEventHandlerWasCalled = 0;
-  var myEventHandler = function() {
-    numTimesEventHandlerWasCalled += 1;
-  };
-  emitter.addListener('myEvent', myEventHandler);
-  emitter.emit('myEvent');
-  assert(numTimesEventHandlerWasCalled === 1);
-  // Check that removeListener still works:
-  emitter.removeListener('myEvent', myEventHandler);
-  emitter.emit('myEvent');
-  assert(numTimesEventHandlerWasCalled === 1);
-}
-
-testEventEmitter();
-
 // child processes
 var proc = cp.spawn('cat');
 
@@ -76,6 +59,7 @@ var unboundUdpServer = dgram.createSocket('udp4');
 
 var udpServer = dgram.createSocket('udp4');
 udpServer.on('message', function udpMessageListener() { });
+udpServer.once('message', function onceHandler() { });
 udpServer.on('listening', function () {
   // open socket
   var socket = net.connect(80, 'www.google.com', doStuff);
