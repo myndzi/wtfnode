@@ -1,6 +1,6 @@
 {
   "name": "wtfnode",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Utility to help find out why Node isn't exiting",
   "repository": {
     "type": "git",
