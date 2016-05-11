@@ -39,3 +39,25 @@ function testEventEmitter() {
 }
 
 testEventEmitter();
+
+function testInterval() {
+  var timer;
+
+  timer = setInterval(function () {
+    throw new Error('Timer callback should not run');
+  }, 0);
+  clearInterval(timer);
+
+  timer = setTimeout(function () {
+    throw new Error('Timer callback should not run');
+  }, 0);
+  clearTimeout(timer);
+
+  if (typeof setImmediate === 'undefined') { return; }
+  timer = setImmediate(function () {
+    throw new Error('Timer callback should not run');
+  }, 0);
+  clearImmediate(timer);
+}
+
+testInterval();
