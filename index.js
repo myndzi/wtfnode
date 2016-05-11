@@ -71,13 +71,6 @@ function timerCallback(thing) {
             }
         );
 
-        // This is intended to interact "cleverly" with node's EventEmitter logic.
-        // EventEmitter itself sometimes wraps the event handler callbacks to implement
-        // things such as once(). See https://github.com/nodejs/node/blob/v6.0.0/lib/events.js#L280
-        // In order for removeListener to still work when called with the original unwrapped function
-        // a .listener member is added to the stored callback which contains the original unwrapped function
-        // and the removeListener logic checks this member as well to match wrapped listeners.
-
         var stack = __stack;
 
         // this should inherit 'name' and 'length' and any other properties that have been assigned
@@ -148,6 +141,12 @@ function timerCallback(thing) {
 
         if (typeof args[1] === 'function') {
             args[1] = wrapFn(args[1], args[1].name, null);
+            // This is intended to interact "cleverly" with node's EventEmitter logic.
+            // EventEmitter itself sometimes wraps the event handler callbacks to implement
+            // things such as once(). See https://github.com/nodejs/node/blob/v6.0.0/lib/events.js#L280
+            // In order for removeListener to still work when called with the original unwrapped function
+            // a .listener member is added to the callback which references the original unwrapped function
+            // and the removeListener logic checks this member as well to match wrapped listeners.
             args[1].listener = arguments[1];
         }
 
