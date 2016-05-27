@@ -187,7 +187,7 @@ ChildProcess = (function () {
 
     if (typeof ChildProcess !== 'function') {
         // node 0.10 doesn't expose the ChildProcess constructor, so we have to get it on the sly
-        var cp = require('child_process').spawn('true', { stdio: 'ignore' });
+        var cp = require('child_process').spawn('true', [], { stdio: 'ignore' });
         ChildProcess = cp.constructor;
     }
 
