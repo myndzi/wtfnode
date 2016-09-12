@@ -40,6 +40,8 @@ You can install as a global module (`npm install -g wtfnode`) and call a node sc
 
 If you do this, `wtfnode` will load itself, then forward control to the script you specified as if you had run `node <yourscript> ...`. When you are ready, send SIGINT (Ctrl+C). The process will exit, and the active handles at the time of exit will be printed out.
 
+Version 0.4.0: When a module has bound SIGINT, Node will no longer be able to exit when in an infinite loop. `wtfnode` now instead launches the target by way of a watchdog proxy; you may now Ctrl+C twice to force termination. No information will be available, since no other code can be run while an infinite loop is executing, but this should at least make life a little easier.
+
 # Module usage
 
 Install as a local module (`npm install wtfnode`).
