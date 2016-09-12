@@ -1,6 +1,5 @@
-#!/usr/bin/env node
-
 'use strict';
+
 // Don't require these until we've hooked certain builtins
 var ChildProcess,
     dgramSocket,
@@ -442,7 +441,7 @@ if (module === require.main) {
     // identical as possible to invoking `node <the_module>` directly.
     // This means massaging process.argv and using Module.runMain to convince
     // the module that it is the 'main' module.
-    var newArgv = parseArgs(process.argv)
+    var newArgv = parseArgs(process.argv);
     var Module = require('module');
     process.argv = newArgv;
     Module.runMain();
