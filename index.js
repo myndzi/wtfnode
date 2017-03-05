@@ -5,11 +5,19 @@ var ChildProcess,
     dgramSocket,
     HttpServer,
     HttpsServer,
+    child_process,
+    cluster,
     path,
     Server,
     Socket,
     Timer,
     TlsServer;
+
+var NODE_VERSION = process.version.slice(1).split('.').map(function (v) { return parseInt(v, 10); });
+
+var DONT_INSTRUMENT = {
+    'ChildProcess': NODE_VERSION[0] === 0 && NODE_VERSION[1] <= 10
+};
 
 function timerCallback(thing) {
     if (typeof thing._repeat === 'function') { return '_repeat'; }
@@ -42,7 +50,12 @@ function timerCallback(thing) {
             // Ignore frames from:
             //  - wtfnode by excluding __filename
             //  - builtins by excluding files with no path separator
-            if (stack[i].file !== __filename && stack[i].file.indexOf(path.sep) !== -1) {
+            //  - internal builtins by excluding files beginning with 'internal/'
+            //    (even on windows, the stack trace uses unix separators for these)
+            if (stack[i].file !== __filename &&
+                stack[i].file.indexOf(path.sep) !== -1 &&
+                stack[i].file.slice(0, 9) !== 'internal/'
+            ) {
               return stack[i];
             }
         }
@@ -82,32 +95,34 @@ function timerCallback(thing) {
         });
 
         // we use these later to identify the source information about an open handle
-        Object.defineProperties(wrapped, {
-            __fullStack: {
-                enumerable: false,
-                configurable: false,
-                writable: false,
-                value: stack
-            },
-            __name: {
-                enumerable: false,
-                configurable: false,
-                writable: false,
-                value: name || '(anonymous)'
-            },
-            __callSite: {
-                enumerable: false,
-                configurable: false,
-                writable: false,
-                value: findCallsite(stack)
-            },
-            __isInterval: {
-                enumerable: false,
-                configurable: false,
-                writable: false,
-                value: isInterval
-            }
-        });
+        if (!wrapped.hasOwnProperty('__callSite')) {
+            Object.defineProperties(wrapped, {
+                __fullStack: {
+                    enumerable: false,
+                    configurable: false,
+                    writable: false,
+                    value: stack
+                },
+                __name: {
+                    enumerable: false,
+                    configurable: false,
+                    writable: false,
+                    value: name || '(anonymous)'
+                },
+                __callSite: {
+                    enumerable: false,
+                    configurable: false,
+                    writable: false,
+                    value: findCallsite(stack)
+                },
+                __isInterval: {
+                    enumerable: false,
+                    configurable: false,
+                    writable: false,
+                    value: isInterval
+                }
+            });
+        }
         return wrapped;
     }
 
@@ -132,6 +147,26 @@ function timerCallback(thing) {
 
     var EventEmitter = require('events').EventEmitter;
     var _EventEmitter_addListener = EventEmitter.prototype.addListener;
+    var _EventEmitter_init = EventEmitter.init;
+
+    if (!DONT_INSTRUMENT['ChildProcess']) {
+        // this will conveniently be run on new child processes
+        EventEmitter.init = function () {
+            var callSite = findCallsite(__stack);
+            if (callSite && !this.hasOwnProperty('__callSite')) {
+                Object.defineProperties(this, {
+                    __callSite: {
+                        enumerable: false,
+                        configurable: false,
+                        writable: false,
+                        value: findCallsite(__stack)
+                    }
+                });
+            }
+
+            return _EventEmitter_init.apply(this, arguments);
+        };
+    }
 
     EventEmitter.prototype.on =
     EventEmitter.prototype.addListener = function (/*type, listener*/) {
@@ -147,6 +182,20 @@ function timerCallback(thing) {
             // a .listener member is added to the callback which references the original unwrapped function
             // and the removeListener logic checks this member as well to match wrapped listeners.
             args[1].listener = arguments[1];
+
+            // the above causes a problem in node v7: EventEmitter.prototype.listeners
+            // unwraps the functions before returning them, so we lose our wrapper and
+            // its associated data. I've tried to avoid mutating things that are not
+            // mine, and use the Node API where I can, but it seems somewhat unavoidable
+            // here
+            Object.defineProperties(arguments[1], {
+                __callSite: {
+                    enumerable: false,
+                    configurable: false,
+                    writable: false,
+                    value: args[1].__callSite
+                }
+            });
         }
 
         return _EventEmitter_addListener.apply(this, args);
@@ -162,35 +211,70 @@ function timerCallback(thing) {
                 this.removeListener(type, fn);
             });
             args[1].listener = arguments[1];
+            Object.defineProperties(arguments[1], {
+                __callSite: {
+                    enumerable: false,
+                    configurable: false,
+                    writable: false,
+                    value: args[1].__callSite
+                }
+            });
         }
 
         return _EventEmitter_addListener.apply(this, args);
     };
-})();
 
-// path must be required before the rest of these
-// as some of them invoke our hooks on load which
-// requires path to be available to the above code
-path = require('path');
+    // path must be required before the rest of these
+    // as some of them invoke our hooks on load which
+    // requires path to be available to the above code
+    path = require('path');
 
-dgramSocket = require('dgram').Socket;
-HttpServer = require('http').Server;
-HttpsServer = require('https').Server;
-Server = require('net').Server;
-Socket = require('net').Socket;
-Timer = process.binding('timer_wrap').Timer;
-TlsServer = require('tls').Server;
+    dgramSocket = require('dgram').Socket;
+    HttpServer = require('http').Server;
+    HttpsServer = require('https').Server;
+    Server = require('net').Server;
+    Socket = require('net').Socket;
+    Timer = process.binding('timer_wrap').Timer;
+    TlsServer = require('tls').Server;
 
-ChildProcess = (function () {
-    var ChildProcess = require('child_process').ChildProcess;
+    ChildProcess = (function () {
+        var ChildProcess = require('child_process').ChildProcess;
 
-    if (typeof ChildProcess !== 'function') {
-        // node 0.10 doesn't expose the ChildProcess constructor, so we have to get it on the sly
-        var cp = require('child_process').spawn('true', [], { stdio: 'ignore' });
-        ChildProcess = cp.constructor;
-    }
+        if (typeof ChildProcess !== 'function') {
+            // node 0.10 doesn't expose the ChildProcess constructor, so we have to get it on the sly
+            var cp = require('child_process').spawn('true', [], { stdio: 'ignore' });
+            ChildProcess = cp.constructor;
+        }
 
-    return ChildProcess;
+        return ChildProcess;
+    })();
+
+    cluster = require('cluster');
+    var _cluster_fork = cluster.fork;
+    cluster.fork = function (/*env*/) {
+        var worker = _cluster_fork.apply(this, arguments);
+
+        // we get an open handle for a pipe, but no reference to the
+        // worker itself, so we add one, as well as the call site info
+        if (worker && worker.process && worker.process._channel) {
+            Object.defineProperties(worker.process._channel, {
+                __callSite: {
+                    enumerable: false,
+                    configurable: false,
+                    writable: false,
+                    value: findCallsite(__stack)
+                },
+                __worker: {
+                    enumerable: false,
+                    configurable: false,
+                    writable: false,
+                    value: worker
+                }
+            });
+        }
+
+        return worker;
+    };
 })();
 
 function formatTime(t) {
@@ -202,19 +286,23 @@ function formatTime(t) {
     return Math.floor(t) + ' ' + labels[i-1];
 };
 
-function getCallsite(fn) {
-    if (!fn.__callSite) {
-        console.warn('Unable to determine callsite for function "'+(fn.name.trim() || 'unknown')+'". Did you require `wtfnode` at the top of your entry point?');
-        return { file: 'unknown', line: 'unknown' };
+var count = 0;
+function getCallsite(thing) {
+    if (!thing.__callSite) {
+        var name = ((thing.name ? thing.name : thing.constructor.name) || 'unknown').trim();
+        if (!DONT_INSTRUMENT[name]) {
+            console.warn('Unable to determine callsite for "'+name+'". Did you require `wtfnode` at the top of your entry point?');
+        }
+        return { file: 'unknown', line: 0 };
     }
-    return fn.__callSite;
+    return thing.__callSite;
 };
 
 function dump() {
     console.log('[WTF Node?] open handles:');
 
     // sort the active handles into different types for logging
-    var sockets = [ ], fds = [ ], servers = [ ], _timers = [ ], processes = [ ], other = [ ];
+    var sockets = [ ], fds = [ ], servers = [ ], _timers = [ ], processes = [ ], clusterWorkers = [ ], other = [ ];
     process._getActiveHandles().forEach(function (h) {
         if (h instanceof Socket) {
             // stdin, stdout, etc. are now instances of socket and get listed in open handles
@@ -226,6 +314,7 @@ function dump() {
         else if (h instanceof dgramSocket) { servers.push(h); }
         else if (h instanceof Timer) { _timers.push(h); }
         else if (h instanceof ChildProcess) { processes.push(h); }
+        else if (h.hasOwnProperty('__worker')) { clusterWorkers.push(h); }
 
         // catchall
         else { other.push(h); }
@@ -252,11 +341,24 @@ function dump() {
         });
     }
 
+    // remove cluster workers from child process list
+    clusterWorkers.forEach(function (p) {
+        if (!p.__worker || !p.__worker.process) { return; }
+        var cw = p.__worker.process,
+            idx = processes.indexOf(cw);
+
+        if (idx > -1) { processes.splice(idx, 1); }
+    });
+
     if (processes.length) {
         console.log('- Child processes');
         processes.forEach(function (cp) {
             var fds = [ ];
             console.log('  - PID %s', cp.pid);
+            if (!DONT_INSTRUMENT['ChildProcess']) {
+                var callSite = getCallsite(cp);
+                console.log('    - Entry point: %s:%d', callSite.file, callSite.line);
+            }
             if (cp.stdio && cp.stdio.length) {
                 cp.stdio.forEach(function (s) {
                     if (s && s._handle && (s._handle.fd != null)) { fds.push(s._handle.fd); }
@@ -265,8 +367,20 @@ function dump() {
                         sockets.splice(idx, 1);
                     }
                 });
-                console.log('    - STDIO file descriptors:', fds.join(', '));
+                if (fds && fds.length) {
+                    console.log('    - STDIO file descriptors:', fds.join(', '));
+                }
             }
+        });
+    }
+
+    if (clusterWorkers.length) {
+        console.log('- Cluster workers');
+        clusterWorkers.forEach(function (cw) {
+            var fds = [ ], cp = cw.__worker.process;
+            console.log('  - PID %s', cp.pid);
+            var callSite = getCallsite(cw);
+            console.log('    - Entry point: %s:%d', callSite.file, callSite.line);
         });
     }
 

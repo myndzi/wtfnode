@@ -3,6 +3,7 @@
 !package.json
 !index.js
 !kitchensink.js
+!clustertest.js
 !test.js
 !README.md
 !key.pem
