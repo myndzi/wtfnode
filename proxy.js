@@ -7,8 +7,9 @@
 // to kill the process if it's unresponsive (double Ctrl+C)
 
 var cp = require('child_process');
+var path = require('path');
 
-var child = cp.fork('./index.js', process.argv.slice(2), {
+var child = cp.fork(path.join(__dirname, 'index.js'), process.argv.slice(2), {
     cwd: process.cwd(),
     env: process.env
 });
