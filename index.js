@@ -427,7 +427,11 @@ function dump() {
                 throw e;
             }
 
-            console.log('  - %s:%s (%s)', a.address, a.port, type);
+            if (a) {
+                console.log('  - %s:%s (%s)', a.address, a.port, type);
+            } else {
+                console.log('  - <unknown address>'); // closed / race condition?
+            }
 
             var eventType = (
               type === 'HTTP' || type === 'HTTPS' ? 'request' :
