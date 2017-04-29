@@ -32,20 +32,18 @@ function timerCallback(thing) {
     var _Error_prepareStackTrace = Error.prepareStackTrace;
     var hooked = function (_, stack) { return stack; };
 
-    Object.defineProperty(global, '__stack', {
-        get: function(){
-            Error.prepareStackTrace = hooked
-            var err = new Error();
-            var stack = err.stack.map(function (item) {
-                return {
-                    file: item.getFileName(),
-                    line: item.getLineNumber()
-                };
-            });
-            Error.prepareStackTrace = _Error_prepareStackTrace;
-            return stack;
-        }
-    });
+    function getStack() {
+        Error.prepareStackTrace = hooked
+        var err = new Error();
+        var stack = err.stack.map(function (item) {
+            return {
+                file: item.getFileName(),
+                line: item.getLineNumber()
+            };
+        });
+        Error.prepareStackTrace = _Error_prepareStackTrace;
+        return stack;
+    }
 
     function findCallsite(stack) {
         for (var i = 0; i < stack.length; i++) {
@@ -85,7 +83,7 @@ function timerCallback(thing) {
             }
         );
 
-        var stack = __stack;
+        var stack = getStack();
 
         // this should inherit 'name' and 'length' and any other properties that have been assigned
         Object.getOwnPropertyNames(fn).forEach(function (key) {
@@ -154,14 +152,14 @@ function timerCallback(thing) {
     if (!DONT_INSTRUMENT['ChildProcess']) {
         // this will conveniently be run on new child processes
         EventEmitter.init = function () {
-            var callSite = findCallsite(__stack);
+            var callSite = findCallsite(getStack());
             if (callSite && !this.hasOwnProperty('__callSite')) {
                 Object.defineProperties(this, {
                     __callSite: {
                         enumerable: false,
                         configurable: false,
                         writable: false,
-                        value: findCallsite(__stack)
+                        value: findCallsite(getStack())
                     }
                 });
             }
@@ -264,7 +262,7 @@ function timerCallback(thing) {
                     enumerable: false,
                     configurable: false,
                     writable: false,
-                    value: findCallsite(__stack)
+                    value: findCallsite(getStack())
                 },
                 __worker: {
                     enumerable: false,
