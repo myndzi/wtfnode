@@ -9,7 +9,7 @@
 var cp = require('child_process');
 var PATH = require('path');
 
-var child = cp.fork(PATH.join(__dirname, 'index.js'), process.argv.slice(2), {
+var child = cp.fork(PATH.join(__dirname, 'wtfnode.js'), process.argv.slice(2), {
     cwd: process.cwd(),
     env: process.env
 });
