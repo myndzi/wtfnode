@@ -1,6 +1,6 @@
 # What?
 
-This package came out of frustration with trying to track down the cause of stalled node applications. Node exposes process._getActiveHandles(), which is kind of useful except it's hard to tell what is *actually* going on from just those results. This module breaks it down into something a little simpler, with useful information to help you track down what's really keeping your program open. 
+This package came out of frustration with trying to track down the cause of stalled node applications. Node exposes process._getActiveHandles(), which is kind of useful except it's hard to tell what is *actually* going on from just those results. This module breaks it down into something a little simpler, with useful information to help you track down what's really keeping your program open.
 
 # Sample output
 
@@ -48,7 +48,7 @@ Install as a local module (`npm install wtfnode`).
 
 Require the module: `var wtf = require('wtfnode');`
 
-When you are ready, call `wtf.dump()` to dump open handles. Note that if you call this from a timer, the timer itself may show up! 
+When you are ready, call `wtf.dump()` to dump open handles. Note that if you call this from a timer, the timer itself may show up!
 
 **Important**: Require at the entry point of your application. You must do this before loading / referencing even native node modules, or certain hooks may not be effective.
 
@@ -56,7 +56,7 @@ When you are ready, call `wtf.dump()` to dump open handles. Note that if you cal
 
 This module wraps and depends on private Node methods. It is in no way guaranteed to work now or ever. If it doesn't work for you, first make sure it is loaded before any other module: some modules take references to things that get replaced/wrapped, so it is required that `wtfnode` gets first dibs on everything.
 
-It currently does something useful under Node 0.10 through 5.11. If it stops doing something useful in the future, please post an issue, preferably with a reproducible test script and detailed version information, and I'll try and make it work properly again.
+It currently does something useful under Node 0.10 through 8.1. If it stops doing something useful in the future, please post an issue, preferably with a reproducible test script and detailed version information, and I'll try and make it work properly again.
 
 # Testing
 
