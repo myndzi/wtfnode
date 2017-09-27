@@ -312,7 +312,7 @@ function dump() {
         else if (h instanceof dgramSocket) { servers.push(h); }
         else if (h instanceof Timer) { _timers.push(h); }
         else if (h instanceof ChildProcess) { processes.push(h); }
-        else if (h.hasOwnProperty('__worker')) { clusterWorkers.push(h); }
+        else if (h && h.hasOwnProperty('__worker')) { clusterWorkers.push(h); }
 
         // catchall
         else { other.push(h); }
