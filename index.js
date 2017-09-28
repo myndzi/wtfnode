@@ -302,7 +302,8 @@ function dump() {
     // sort the active handles into different types for logging
     var sockets = [ ], fds = [ ], servers = [ ], _timers = [ ], processes = [ ], clusterWorkers = [ ], other = [ ];
     process._getActiveHandles().forEach(function (h) {
-        if (h instanceof Socket) {
+        if (!h) { return; }
+        else if (h instanceof Socket) {
             // stdin, stdout, etc. are now instances of socket and get listed in open handles
             // todo: a more specific/better way to identify them than the 'fd' property
             if ((h.fd != null)) { fds.push(h); }
@@ -312,7 +313,7 @@ function dump() {
         else if (h instanceof dgramSocket) { servers.push(h); }
         else if (h instanceof Timer) { _timers.push(h); }
         else if (h instanceof ChildProcess) { processes.push(h); }
-        else if (h && h.hasOwnProperty('__worker')) { clusterWorkers.push(h); }
+        else if (h.hasOwnProperty('__worker')) { clusterWorkers.push(h); }
 
         // catchall
         else { other.push(h); }
