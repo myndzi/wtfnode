@@ -302,8 +302,10 @@ function dump() {
     // sort the active handles into different types for logging
     var sockets = [ ], fds = [ ], servers = [ ], _timers = [ ], processes = [ ], clusterWorkers = [ ], other = [ ];
     process._getActiveHandles().forEach(function (h) {
+        // handles can be null now? early exit to guard against this
         if (!h) { return; }
-        else if (h instanceof Socket) {
+
+        if (h instanceof Socket) {
             // stdin, stdout, etc. are now instances of socket and get listed in open handles
             // todo: a more specific/better way to identify them than the 'fd' property
             if ((h.fd != null)) { fds.push(h); }
