@@ -533,9 +533,12 @@ function dump() {
 
 function init() {
     process.on('SIGINT', function () {
-        try { dump(); }
-        catch (e) { console.error(e); }
-        process.exit();
+        // let other potential handlers run before exiting
+        process.nextTick(function () {
+            try { dump(); }
+            catch (e) { console.error(e); }
+            process.exit();
+        });
     });
 }
 
