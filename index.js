@@ -25,6 +25,15 @@ function timerCallback(thing) {
     if (typeof thing._onImmediate === 'function') { return '_onImmediate'; }
 }
 
+function setPrototypeOf(obj, proto) {
+    if (Object.setPrototypeOf) {
+        return Object.setPrototypeOf(obj, proto);
+    } else {
+        obj.__proto__ = proto;
+        return obj;
+    }
+}
+
 // hook stuff
 (function () {
     var _Error_prepareStackTrace = Error.prepareStackTrace;
@@ -60,6 +69,25 @@ function timerCallback(thing) {
         return null;
     }
 
+    function copyProperties(source, target) {
+        // this should inherit 'name' and 'length' and any other properties that have been assigned
+        Object.getOwnPropertyNames(source).forEach(function (key) {
+            try {
+                Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+            } catch (e) {
+                // some properties cannot be redefined, not much we can do about it
+            }
+        });
+        if (!Object.getOwnPropertySymbols) { return; }
+        Object.getOwnPropertySymbols(source).forEach(function (sym) {
+            try {
+                Object.defineProperty(target, sym, Object.getOwnPropertyDescriptor(source, sym));
+            } catch (e) {
+                // some properties cannot be redefined, not much we can do about it
+            }
+        });
+    }
+
     // wraps a function with a proxy function holding the first userland call
     // site in the stack and some other information, for later display
     // this will probably screw up any code that depends on the callbacks having
@@ -84,13 +112,7 @@ function timerCallback(thing) {
         var stack = getStack();
 
         // this should inherit 'name' and 'length' and any other properties that have been assigned
-        Object.getOwnPropertyNames(fn).forEach(function (key) {
-            try {
-                Object.defineProperty(wrapped, key, Object.getOwnPropertyDescriptor(fn, key));
-            } catch (e) {
-                // some properties cannot be redefined, not much we can do about it
-            }
-        });
+        copyProperties(fn, wrapped);
 
         // we use these later to identify the source information about an open handle
         if (!wrapped.hasOwnProperty('__callSite')) {
@@ -139,6 +161,7 @@ function timerCallback(thing) {
 
             return ret;
         };
+        copyProperties(GLOBALS[type], global[type]);
     };
     wrapTimer('setTimeout', false);
     wrapTimer('setInterval', true);

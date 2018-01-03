@@ -5,6 +5,7 @@
 !kitchensink.js
 !clustertest.js
 !test.js
+!test-promisify.js
 !README.md
 !key.pem
 !key-cert.pem
