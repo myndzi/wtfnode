@@ -59,7 +59,8 @@ function setPrototypeOf(obj, proto) {
             //  - builtins by excluding files with no path separator
             //  - internal builtins by excluding files beginning with 'internal/'
             //    (even on windows, the stack trace uses unix separators for these)
-            if (stack[i].file !== __filename &&
+            if (stack[i].file &&
+                stack[i].file !== __filename &&
                 stack[i].file.indexOf(path.sep) !== -1 &&
                 stack[i].file.slice(0, 9) !== 'internal/'
             ) {
