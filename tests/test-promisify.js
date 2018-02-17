@@ -1,6 +1,6 @@
 'use strict';
 
-var wtf = require('./index'),
+var wtf = require('../index'),
     util = require('util');
 
 if (util.promisify) {

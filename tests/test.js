@@ -1,6 +1,6 @@
 'use strict';
 
-var wtf = require('./index');
+var wtf = require('../index');
 
 var EventEmitter = require('events').EventEmitter,
     assert = require('assert');
