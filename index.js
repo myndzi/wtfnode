@@ -36,14 +36,23 @@ function setPrototypeOf(obj, proto) {
 
 // hook stuff
 (function () {
-    var _Error_prepareStackTrace = Error.prepareStackTrace;
     var hooked = function (_, stack) { return stack; };
 
     function getStack() {
-        Error.prepareStackTrace = hooked
+        var _Error_prepareStackTrace = Error.prepareStackTrace;
+        Error.prepareStackTrace = hooked;
         var err = new Error();
         var stack = err.stack.map(function (item) {
+            if (item.isEval()) {
+                var matched = item.getEvalOrigin().match(/\((.*):(\d*):(\d*)\)/) || {};
+                return {
+                    name: '<eval>',
+                    file: matched[1],
+                    line: matched[2]
+                };
+            }
             return {
+                name: item.getFunctionName(),
                 file: item.getFileName(),
                 line: item.getLineNumber()
             };
@@ -55,6 +64,7 @@ function setPrototypeOf(obj, proto) {
     function findCallsite(stack) {
         for (var i = 0; i < stack.length; i++) {
             // Ignore frames from:
+            //  - null/undefined values
             //  - wtfnode by excluding __filename
             //  - builtins by excluding files with no path separator
             //  - internal builtins by excluding files beginning with 'internal/'
@@ -113,6 +123,7 @@ function setPrototypeOf(obj, proto) {
         var stack = getStack();
 
         // this should inherit 'name' and 'length' and any other properties that have been assigned
+        // also inherits prototype, and symbols like the promisify value!
         copyProperties(fn, wrapped);
 
         // we use these later to identify the source information about an open handle
@@ -311,11 +322,11 @@ function formatTime(t) {
 var count = 0;
 function getCallsite(thing) {
     if (!thing.__callSite) {
-        var name = ((thing.name ? thing.name : thing.constructor.name) || 'unknown').trim();
+        var name = ((thing.name ? thing.name : thing.constructor.name) || '(anonymous)').trim();
         if (!DONT_INSTRUMENT[name]) {
             console.warn('Unable to determine callsite for "'+name+'". Did you require `wtfnode` at the top of your entry point?');
         }
-        return { file: 'unknown', line: 0 };
+        return { name: '(anonymous)', file: 'unknown', line: 0 };
     }
     return thing.__callSite;
 };
@@ -360,7 +371,7 @@ function dump() {
                 console.log('    - Listeners:');
                 keypressListeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
-                    console.log('      - %s: %s @ %s:%d', 'keypress', fn.name || '(anonymous)', callSite.file, callSite.line);
+                    console.log('      - %s: %s @ %s:%d', 'keypress', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
                 });
             }
         });
@@ -426,7 +437,7 @@ function dump() {
                 console.log('    - Listeners:');
                 connectListeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
-                    console.log('      - %s: %s @ %s:%d', 'connect', fn.name || '(anonymous)', callSite.file, callSite.line);
+                    console.log('      - %s: %s @ %s:%d', 'connect', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
                 });
             }
         });
@@ -471,7 +482,7 @@ function dump() {
                 console.log('    - Listeners:');
                 listeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
-                    console.log('      - %s: %s @ %s:%d', eventType, fn.__name || fn.name || '(anonymous)', callSite.file, callSite.line);
+                    console.log('      - %s: %s @ %s:%d', eventType, fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
                 });
             }
         });
@@ -523,11 +534,8 @@ function dump() {
         timers.forEach(function (t) {
             var fn = t[timerCallback(t)],
                 callSite = getCallsite(fn);
-            if (fn.__name) {
-                console.log('  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.__name, callSite.file, callSite.line);
-            } else {
-                console.log('  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name, callSite.file, callSite.line);
-            }
+
+            console.log('  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
         });
     }
 
@@ -537,11 +545,8 @@ function dump() {
         intervals.forEach(function (t) {
             var fn = t[timerCallback(t)],
                 callSite = getCallsite(fn);
-            if (fn.__name) {
-                console.log('  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.__name, callSite.file, callSite.line);
-            } else {
-                console.log('  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name, callSite.file, callSite.line);
-            }
+
+            console.log('  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name, callSite.file, callSite.line);
         });
     }
 

@@ -1,18 +1,29 @@
 {
   "name": "wtfnode",
-  "version": "0.5.7",
+  "version": "0.6.0",
   "description": "Utility to help find out why Node isn't exiting",
   "repository": {
     "type": "git",
     "url": "https://github.com/myndzi/wtfnode"
   },
   "main": "index.js",
+  "files": [
+    "index.js",
+    "proxy.js",
+    "README.md"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "(cd tests && node test && node test-eval && node test-promisify)",
+    "test-sourcemaps": "(cd tests && coffee --map --compile test-sourcemaps.coffee && node test-sourcemaps.js || exit 0)",
+    "kitchensink": "(cd tests && node kitchensink)"
   },
   "author": "Kris Reeves",
   "bin": {
     "wtfnode": "proxy.js"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "coffee-script": "^1.12.7",
+    "source-map-support": "^0.5.3"
+  }
 }

@@ -1,12 +1,3 @@
-*
-!.gitignore
-!package.json
-!index.js
-!kitchensink.js
-!clustertest.js
-!test.js
-!test-promisify.js
-!README.md
-!key.pem
-!key-cert.pem
-!proxy.js
+/node_modules
+/tests/test-sourcemaps.js
+/tests/test-sourcemaps.js.map

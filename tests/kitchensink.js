@@ -1,4 +1,4 @@
-var wtf = require('./index');
+var wtf = require('../index');
 
 var assert = require('assert');
     cp = require('child_process'),

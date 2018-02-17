@@ -1,6 +1,6 @@
 'use strict';
 
-var wtf = require('./index'),
+var wtf = require('../index'),
     cluster = require('cluster');
 
 if (cluster.isMaster) {
