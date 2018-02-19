@@ -13,7 +13,7 @@
     "README.md"
   ],
   "scripts": {
-    "test": "(cd tests && node test && node test-eval && node test-promisify)",
+    "test": "(cd tests && node test && node test-eval && node test-promise && node test-promisify)",
     "test-sourcemaps": "(cd tests && coffee --map --compile test-sourcemaps.coffee && node test-sourcemaps.js || exit 0)",
     "kitchensink": "(cd tests && node kitchensink)"
   },
