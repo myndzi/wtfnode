@@ -52,6 +52,22 @@ When you are ready, call `wtf.dump()` to dump open handles. Note that if you cal
 
 **Important**: Require at the entry point of your application. You must do this before loading / referencing even native node modules, or certain hooks may not be effective.
 
+## Configuring logging
+`wtfnode` uses three logging levels, which default to `console.log`, `console.warn`, and `console.error`. The output is sent to `console.log`; warnings about potential problems when calculating the output are sent to `console.warn`; `console.error` is currently only used to print CLI usage info.
+
+You can set these functions to an arbitrary log function of your own. It will be passed data in the same way that console.log receives it, so if you want a plain string you should call `util.format.apply(util, args)` on the data you receive.
+
+Usage:
+```js
+var wtf = require('wtfnode');
+
+wtf.setLogger('info', function (...) { ... });
+wtf.setLogger('warn', function (...) { ... });
+wtf.setLogger('error', function (...) { ... });
+
+wtf.resetLoggers(); // if you want to put them back for some reason
+```
+
 # Caution
 
 This module wraps and depends on private Node methods. It is in no way guaranteed to work now or ever. If it doesn't work for you, first make sure it is loaded before any other module: some modules take references to things that get replaced/wrapped, so it is required that `wtfnode` gets first dibs on everything.

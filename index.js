@@ -19,6 +19,10 @@ var DONT_INSTRUMENT = {
     'ChildProcess': NODE_VERSION[0] === 0 && NODE_VERSION[1] <= 10
 };
 
+var _console_log = console.log.bind(console),
+    _console_warn = console.warn.bind(console),
+    _console_error = console.error.bind(console);
+
 function timerCallback(thing) {
     if (typeof thing._repeat === 'function') { return '_repeat'; }
     if (typeof thing._onTimeout === 'function') { return '_onTimeout'; }
@@ -33,6 +37,34 @@ function setPrototypeOf(obj, proto) {
         return obj;
     }
 }
+
+var log = (function () {
+    var util;
+    var fns = { };
+
+    function log(/*type, args...*/) {
+        // lazy load so we can define this early but don't cause any requires
+        // until after we've hooked things or don't care
+        util = util || require('util');
+        var i = arguments.length, args = new Array(i);
+        while (i--) { args[i] = arguments[i]; }
+        var type = args.shift(), str = util.format.apply(util, args);
+        return fns[type](str);
+    }
+    log.setLogger = function setLogger(type, fn) {
+        fns[type] = fn;
+    };
+    log.resetLoggers = function resetLoggers() {
+        fns = {
+            'info': _console_log,
+            'warn': _console_warn,
+            'error': _console_error
+        };
+    };
+
+    log.resetLoggers();
+    return log;
+})();
 
 // hook stuff
 (function () {
@@ -104,7 +136,6 @@ function setPrototypeOf(obj, proto) {
     // this will probably screw up any code that depends on the callbacks having
     // a 'name' or 'length' property that is accurate, but there doesn't appear
     // to be a way around that :(
-    var consolelog = console.log.bind(console);
     function wrapFn(fn, name, isInterval, callback) {
         if (typeof fn !== 'function') { return fn; }
 
@@ -324,7 +355,7 @@ function getCallsite(thing) {
     if (!thing.__callSite) {
         var name = ((thing.name ? thing.name : thing.constructor.name) || '(anonymous)').trim();
         if (!DONT_INSTRUMENT[name]) {
-            console.warn('Unable to determine callsite for "'+name+'". Did you require `wtfnode` at the top of your entry point?');
+            log('warn', 'Unable to determine callsite for "'+name+'". Did you require `wtfnode` at the top of your entry point?');
         }
         return { name: '(anonymous)', file: 'unknown', line: 0 };
     }
@@ -332,7 +363,7 @@ function getCallsite(thing) {
 };
 
 function dump() {
-    console.log('[WTF Node?] open handles:');
+    log('info', '[WTF Node?] open handles:');
 
     // sort the active handles into different types for logging
     var sockets = [ ], fds = [ ], servers = [ ], _timers = [ ], processes = [ ], clusterWorkers = [ ], other = [ ];
@@ -357,21 +388,21 @@ function dump() {
     });
 
     if (fds.length) {
-        console.log('- File descriptors: (note: stdio always exists)');
+        log('info', '- File descriptors: (note: stdio always exists)');
         fds.forEach(function (s) {
             var str = '  - fd '+s.fd;
             if (s.isTTY) { str += ' (tty)'; }
             if (s._isStdio) { str += ' (stdio)'; }
             if (s.destroyed) { str += ' (destroyed)'; }
-            console.log(str);
+            log('info', str);
 
             // this event will source the origin of a readline instance, kind of indirectly
             var keypressListeners = s.listeners('keypress');
             if (keypressListeners && keypressListeners.length) {
-                console.log('    - Listeners:');
+                log('info', '    - Listeners:');
                 keypressListeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
-                    console.log('      - %s: %s @ %s:%d', 'keypress', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+                    log('info', '      - %s: %s @ %s:%d', 'keypress', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
                 });
             }
         });
@@ -387,13 +418,13 @@ function dump() {
     });
 
     if (processes.length) {
-        console.log('- Child processes');
+        log('info', '- Child processes');
         processes.forEach(function (cp) {
             var fds = [ ];
-            console.log('  - PID %s', cp.pid);
+            log('info', '  - PID %s', cp.pid);
             if (!DONT_INSTRUMENT['ChildProcess']) {
                 var callSite = getCallsite(cp);
-                console.log('    - Entry point: %s:%d', callSite.file, callSite.line);
+                log('info', '    - Entry point: %s:%d', callSite.file, callSite.line);
             }
             if (cp.stdio && cp.stdio.length) {
                 cp.stdio.forEach(function (s) {
@@ -404,47 +435,47 @@ function dump() {
                     }
                 });
                 if (fds && fds.length) {
-                    console.log('    - STDIO file descriptors:', fds.join(', '));
+                    log('info', '    - STDIO file descriptors:', fds.join(', '));
                 }
             }
         });
     }
 
     if (clusterWorkers.length) {
-        console.log('- Cluster workers');
+        log('info', '- Cluster workers');
         clusterWorkers.forEach(function (cw) {
             var fds = [ ], cp = cw.__worker.process;
-            console.log('  - PID %s', cp.pid);
+            log('info', '  - PID %s', cp.pid);
             var callSite = getCallsite(cw);
-            console.log('    - Entry point: %s:%d', callSite.file, callSite.line);
+            log('info', '    - Entry point: %s:%d', callSite.file, callSite.line);
         });
     }
 
     if (sockets.length) {
-        console.log('- Sockets:');
+        log('info', '- Sockets:');
         sockets.forEach(function (s) {
             if (s.destroyed) {
-                console.log('  - (?:?) -> %s:? (destroyed)', s._host);
+                log('info', '  - (?:?) -> %s:? (destroyed)', s._host);
             } else if (s.localAddress) {
-                console.log('  - %s:%s -> %s:%s', s.localAddress, s.localPort, s.remoteAddress, s.remotePort);
+                log('info', '  - %s:%s -> %s:%s', s.localAddress, s.localPort, s.remoteAddress, s.remotePort);
             } else if (s._handle && (s._handle.fd != null)) {
-                console.log('  - fd %s', s._handle.fd);
+                log('info', '  - fd %s', s._handle.fd);
             } else {
-                console.log('  - unknown socket');
+                log('info', '  - unknown socket');
             }
             var connectListeners = s.listeners('connect');
             if (connectListeners && connectListeners.length) {
-                console.log('    - Listeners:');
+                log('info', '    - Listeners:');
                 connectListeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
-                    console.log('      - %s: %s @ %s:%d', 'connect', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+                    log('info', '      - %s: %s @ %s:%d', 'connect', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
                 });
             }
         });
     }
 
     if (servers.length) {
-        console.log('- Servers:');
+        log('info', '- Servers:');
         servers.forEach(function (s) {
             var type = 'unknown type';
             if (s instanceof HttpServer) { type = 'HTTP'; }
@@ -464,9 +495,9 @@ function dump() {
             }
 
             if (a) {
-                console.log('  - %s:%s (%s)', a.address, a.port, type);
+                log('info', '  - %s:%s (%s)', a.address, a.port, type);
             } else {
-                console.log('  - <unknown address>'); // closed / race condition?
+                log('info', '  - <unknown address>'); // closed / race condition?
             }
 
             var eventType = (
@@ -479,10 +510,10 @@ function dump() {
             var listeners = s.listeners(eventType);
 
             if (listeners && listeners.length) {
-                console.log('    - Listeners:');
+                log('info', '    - Listeners:');
                 listeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
-                    console.log('      - %s: %s @ %s:%d', eventType, fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+                    log('info', '      - %s: %s @ %s:%d', eventType, fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
                 });
             }
         });
@@ -529,33 +560,33 @@ function dump() {
     });
 
     if (timers.length) {
-        console.log('- Timers:');
+        log('info', '- Timers:');
 
         timers.forEach(function (t) {
             var fn = t[timerCallback(t)],
                 callSite = getCallsite(fn);
 
-            console.log('  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+            log('info', '  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
         });
     }
 
     if (intervals.length) {
-        console.log('- Intervals:');
+        log('info', '- Intervals:');
 
         intervals.forEach(function (t) {
             var fn = t[timerCallback(t)],
                 callSite = getCallsite(fn);
 
-            console.log('  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name, callSite.file, callSite.line);
+            log('info', '  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name, callSite.file, callSite.line);
         });
     }
 
     if (other.length) {
-        console.log('- Others:');
+        log('info', '- Others:');
         other.forEach(function (o) {
             if (!o) { return; }
-            if (o.constructor) { console.log('  - %s', o.constructor.name); }
-            else { console.log('  - %s', o); }
+            if (o.constructor) { log('info', '  - %s', o.constructor.name); }
+            else { log('info', '  - %s', o); }
         });
     }
 }
@@ -565,7 +596,7 @@ function init() {
         // let other potential handlers run before exiting
         process.nextTick(function () {
             try { dump(); }
-            catch (e) { console.error(e); }
+            catch (e) { log('error', e); }
             process.exit();
         });
     });
@@ -573,12 +604,14 @@ function init() {
 
 module.exports = {
     dump: dump,
-    init: init
+    init: init,
+    setLogger: log.setLogger,
+    resetLoggers: log.resetLoggers
 };
 
 function parseArgs() {
     if (process.argv.length < 3) {
-        console.error('Usage: wtfnode <yourscript> <yourargs> ...');
+        log('error', 'Usage: wtfnode <yourscript> <yourargs> ...');
         process.exit(1);
     }
     var moduleParams = process.argv.slice(3);
