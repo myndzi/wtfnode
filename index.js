@@ -585,10 +585,19 @@ function dump() {
         log('info', '- Others:');
         other.forEach(function (o) {
             if (!o) { return; }
-            if (o.constructor) { log('info', '  - %s', o.constructor.name); }
+            if (isChannel(o)) {
+                log('info', '  - %s', 'IPC channel to parent (see readme)');
+            }
+            else if (o.constructor) { log('info', '  - %s', o.constructor.name); }
             else { log('info', '  - %s', o); }
         });
     }
+}
+function isChannel(obj) {
+    // node docs state process.channel added in 7.10, but _channel
+    // seems to exist prior to that
+    var ch = process.channel || process._channel;
+    return ch && obj === ch;
 }
 
 function init() {

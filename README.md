@@ -30,9 +30,15 @@ This package came out of frustration with trying to track down the cause of stal
 	  - (10000 ~ 10 s) wrapper @ /home/me/app/node_modules/knex/node_modules/pool2/lib/pool.js:80
 	  - (300000 ~ 5 min) wrapper @ /home/me/app/services/foo.service.js:61
 
-# Note
+# Notes
 
+## Timers named "wrapper"
 You'll see that the function name listed under timers is `wrapper` -- this is the wrapper around interval timers as created by setInterval. I can still get a source line, but I can't get the original function name out, unfortunately. Caveats like this may exist in other places, too.
+
+## "IPC channel to parent"
+When using child_process.fork, or child_process.spawn with default stdio configuration (or possibly when your program is run by something else, such as PM2), an inter-process communication (IPC) channel is opened to send messages between the parent and child. Since this is not based on any code the current program has executed, I can't get much more information than that. It means that the parent end of the connection is still open, so you'll want to investigate whatever spawned the process you're seeing this from.
+
+When using wtfnode from a child process, on version 0.12 there is some strange behavior where a child process handle briefly exists and you will get a warning such as "unable to determine callsite" -- this is peaceful to ignore, and can be avoided by delaying the call to `wtf.dump()` slightly.
 
 # Command line usage
 

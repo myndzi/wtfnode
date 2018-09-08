@@ -7,6 +7,8 @@ if (cluster.isMaster) {
     var worker = cluster.fork();
     worker.on('online', function () {
         wtf.dump();
-        worker.kill();
     });
+} else {
+    wtf.dump();
+    process.exit();
 }

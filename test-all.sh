@@ -13,6 +13,7 @@ declare -a versions=(
   "7"
   "8"
   "9"
+  "10"
 )
 
 test_version () {
