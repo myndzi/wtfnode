@@ -209,8 +209,9 @@ var log = (function () {
     wrapTimer('setTimeout', false);
     wrapTimer('setInterval', true);
 
-    var EventEmitter = require('events').EventEmitter;
-    var _EventEmitter_addListener = EventEmitter.prototype.addListener;
+    var EventEmitter = require('events').EventEmitter,
+        Readable = require('stream').Readable;
+
     var _EventEmitter_init = EventEmitter.init;
 
     if (!DONT_INSTRUMENT['ChildProcess']) {
@@ -232,61 +233,53 @@ var log = (function () {
         };
     }
 
-    EventEmitter.prototype.on =
-    EventEmitter.prototype.addListener = function (/*type, listener*/) {
-        var args = [ ], i = arguments.length, fn;
-        while (i--) { args[i] = arguments[i]; }
+    function addListener(emitter, origMethod, type, cb) {
+        var before = emitter.listeners(type);
+        origMethod.call(emitter, type, cb);
+        var after = emitter.listeners(type);
+        return after.filter(function(handler) {
+            return before.indexOf(handler) === -1;
+        });
+    }
 
-        if (typeof args[1] === 'function') {
-            args[1] = wrapFn(args[1], args[1].name, null);
-            // This is intended to interact "cleverly" with node's EventEmitter logic.
-            // EventEmitter itself sometimes wraps the event handler callbacks to implement
-            // things such as once(). See https://github.com/nodejs/node/blob/v6.0.0/lib/events.js#L280
-            // In order for removeListener to still work when called with the original unwrapped function
-            // a .listener member is added to the callback which references the original unwrapped function
-            // and the removeListener logic checks this member as well to match wrapped listeners.
-            args[1].listener = arguments[1];
+    // Readable streams have their own handling of the "on data" event
+    // which must be wrapped separately; if we call EventEmitter's handler
+    // on a readable stream, it will do the wrong thing
+    [EventEmitter, Readable].forEach(function (Cls) {
+        ['on', 'addListener', 'once'].forEach(function (method) {
+            var origMethod = Cls.prototype[method];
+            Cls.prototype[method] = function (/*type, listener*/) {
+                var args = [ ], i = arguments.length, fn;
+                while (i--) { args[i] = arguments[i]; }
 
-            // the above causes a problem in node v7: EventEmitter.prototype.listeners
-            // unwraps the functions before returning them, so we lose our wrapper and
-            // its associated data. I've tried to avoid mutating things that are not
-            // mine, and use the Node API where I can, but it seems somewhat unavoidable
-            // here
-            Object.defineProperties(arguments[1], {
-                __callSite: {
-                    enumerable: false,
-                    configurable: false,
-                    writable: false,
-                    value: args[1].__callSite
-                }
-            });
-        }
+                var type = args[0], fn = args[1];
 
-        return _EventEmitter_addListener.apply(this, args);
-    };
+                var callSite = wrapFn(args[1], args[1].name, null).__callSite;
 
-    EventEmitter.prototype.once = function (/*type, listener*/) {
-        var args = [ ], i = arguments.length, fn;
-        while (i--) { args[i] = arguments[i]; }
-
-        var type = args[0], fn = args[1];
-        if (typeof fn === 'function') {
-            args[1] = wrapFn(fn, fn.name, null, function () {
-                this.removeListener(type, fn);
-            });
-            args[1].listener = arguments[1];
-            Object.defineProperties(arguments[1], {
-                __callSite: {
-                    enumerable: false,
-                    configurable: false,
-                    writable: false,
-                    value: args[1].__callSite
-                }
-            });
-        }
-
-        return _EventEmitter_addListener.apply(this, args);
-    };
+                var newListeners = addListener(this, origMethod, type, fn);
+                newListeners.forEach(function (listener) {
+                    // I've tried to avoid mutating anything that's not mine, however
+                    // the possibilities across Node versions, wrapping behavior, and
+                    // so on made this complex. So instead, we just tag all possible
+                    // wrappers and functions with the callsite and move on with our
+                    // life. this lets node behave however it would behave, and whatever
+                    // we wind up with a reference to (wrapped or unwrapped, etc.)
+                    // in getActiveHandles, it should have the info we want.
+                    while (listener && !listener.hasOwnProperty('__callSite')) {
+                        Object.defineProperties(listener, {
+                            __callSite: {
+                                enumerable: false,
+                                configurable: false,
+                                writable: false,
+                                value: callSite
+                            }
+                        });
+                        listener = listener.listener;
+                    }
+                });
+            };
+        });
+    });
 
     // path must be required before the rest of these
     // as some of them invoke our hooks on load which
