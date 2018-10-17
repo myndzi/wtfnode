@@ -6,12 +6,13 @@ var EventEmitter = require('events').EventEmitter,
     assert = require('assert');
 
 function testEventEmitter() {
-  var emitter = new EventEmitter();
+  var emitter = new EventEmitter(), em;
   var numTimesEventHandlerWasCalled = 0;
   var myEventHandler = function() {
     numTimesEventHandlerWasCalled += 1;
   };
-  emitter.addListener('myEvent', myEventHandler);
+  em = emitter.addListener('myEvent', myEventHandler);
+  assert.equal(em, emitter, 'emitter.addListener should return `this`');
   emitter.emit('myEvent');
   assert.equal(1, numTimesEventHandlerWasCalled, 'Handler should be called once');
   // Check that removeListener still works:
@@ -21,7 +22,8 @@ function testEventEmitter() {
 
   // Check that .once works
   numTimesEventHandlerWasCalled = 0;
-  emitter.once('myEvent', myEventHandler);
+  em = emitter.once('myEvent', myEventHandler);
+  assert.equal(em, emitter, 'emitter.once should return `this`');
   emitter.emit('myEvent');
 
   assert.equal(1, numTimesEventHandlerWasCalled, 'Handler should be called once');

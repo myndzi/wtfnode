@@ -235,11 +235,12 @@ var log = (function () {
 
     function addListener(emitter, origMethod, type, cb) {
         var before = emitter.listeners(type);
-        origMethod.call(emitter, type, cb);
+        var ret = origMethod.call(emitter, type, cb);
         var after = emitter.listeners(type);
-        return after.filter(function(handler) {
+        var newListeners = after.filter(function(handler) {
             return before.indexOf(handler) === -1;
         });
+        return [ret, newListeners];
     }
 
     // Readable streams have their own handling of the "on data" event
@@ -256,7 +257,8 @@ var log = (function () {
 
                 var callSite = wrapFn(args[1], args[1].name, null).__callSite;
 
-                var newListeners = addListener(this, origMethod, type, fn);
+                var res = addListener(this, origMethod, type, fn);
+                var ret = res[0], newListeners = res[1];
                 newListeners.forEach(function (listener) {
                     // I've tried to avoid mutating anything that's not mine, however
                     // the possibilities across Node versions, wrapping behavior, and
@@ -277,6 +279,7 @@ var log = (function () {
                         listener = listener.listener;
                     }
                 });
+                return ret;
             };
         });
     });
