@@ -11,7 +11,8 @@ var ChildProcess,
     Server,
     Socket,
     Timer,
-    TlsServer;
+    TlsServer,
+    async_hooks;
 
 var NODE_VERSION = process.version.slice(1).split('.').map(function (v) { return parseInt(v, 10); });
 
@@ -65,6 +66,52 @@ var log = (function () {
     log.resetLoggers();
     return log;
 })();
+
+var trackedAsyncResources = null, refSymbol = null;
+function getRefSymbol() {
+    function _noop() { }
+    function _getRefSymbol(asyncId, type, triggerAsyncId, resource) {
+        var symbols = Object.getOwnPropertySymbols(resource);
+        symbols.forEach(function (sym) {
+            if (sym.description === 'refed') {
+                refSymbol = sym;
+            }
+        });
+    }
+    var hook = async_hooks.createHook({
+        init: _getRefSymbol
+    });
+    hook.enable();
+    var timer = setTimeout(_noop, 1000);
+    hook.disable();
+    clearTimeout(timer);
+}
+function setupAsyncHooks() {
+    async_hooks = require('async_hooks');
+    getRefSymbol();
+    trackedAsyncResources = new Map();
+
+    function init(asyncId, type, triggerAsyncId, resource) {
+        if (type === 'Timeout') {
+
+            trackedAsyncResources.set(asyncId, {
+                resource: resource,
+                type: type
+            });
+        }
+
+    }
+    function destroy(asyncId) {
+        if (trackedAsyncResources.has(asyncId)) {
+            trackedAsyncResources.delete(asyncId);
+        }
+    }
+    var hook = async_hooks.createHook({
+        init: init,
+        destroy: destroy
+    });
+    hook.enable();
+}
 
 // hook stuff
 (function () {
@@ -294,7 +341,11 @@ var log = (function () {
     HttpsServer = require('https').Server;
     Server = require('net').Server;
     Socket = require('net').Socket;
-    Timer = process.binding('timer_wrap').Timer;
+    if (NODE_VERSION[0] < 11) {
+        Timer = process.binding('timer_wrap').Timer;
+    } else {
+        setupAsyncHooks();
+    }
     TlsServer = require('tls').Server;
 
     ChildProcess = (function () {
@@ -375,13 +426,23 @@ function dump() {
         }
         else if (h instanceof Server) { servers.push(h); }
         else if (h instanceof dgramSocket) { servers.push(h); }
-        else if (h instanceof Timer) { _timers.push(h); }
+        else if (NODE_VERSION[0] < 11 && h instanceof Timer) { _timers.push(h); }
         else if (h instanceof ChildProcess) { processes.push(h); }
         else if (h.hasOwnProperty('__worker')) { clusterWorkers.push(h); }
 
         // catchall
         else { other.push(h); }
     });
+
+    if (trackedAsyncResources !== null) {
+        trackedAsyncResources.forEach(function (obj) {
+            if (obj.type === 'Timeout') {
+                if (obj.resource[refSymbol] === true) {
+                    _timers.push(obj.resource);
+                }
+            }
+        });
+    }
 
     if (fds.length) {
         log('info', '- File descriptors: (note: stdio always exists)');
@@ -518,7 +579,18 @@ function dump() {
     var timers = [ ], intervals = [ ];
     _timers.forEach(function (t) {
         var timer = t._list, cb, cbkey;
-        if (t._list) {
+        if (NODE_VERSION[0] > 10) {
+            timer = t;
+            cbkey = timerCallback(timer);
+            if (cbkey && timers.indexOf(timer) === -1) {
+                cb = timer[cbkey];
+                if (cb.__isInterval) {
+                    intervals.push(timer);
+                } else {
+                    timers.push(timer);
+                }
+            }
+        } else if (t._list) {
             // node v5ish behavior
             do {
                 cbkey = timerCallback(timer);
@@ -542,7 +614,7 @@ function dump() {
                     }
                     cbkey = timerCallback(timer);
                     if (cbkey && timers.indexOf(timer) === -1) {
-                        cb = timer[cbkey]
+                        cb = timer[cbkey];
                         if (cb.__isInterval) {
                             intervals.push(timer);
                         } else {
@@ -550,7 +622,6 @@ function dump() {
                         }
                     }
                 }
-
             });
         }
     });
