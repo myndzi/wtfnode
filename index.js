@@ -667,15 +667,17 @@ function isChannel(obj) {
     return ch && obj === ch;
 }
 
-function init() {
-    process.on('SIGINT', function () {
-        // let other potential handlers run before exiting
-        process.nextTick(function () {
-            try { dump(); }
-            catch (e) { log('error', e); }
-            process.exit();
-        });
+function dumpAndExit() {
+    // let other potential handlers run before exiting
+    process.nextTick(function () {
+        try { dump(); }
+        catch (e) { log('error', e); }
+        process.exit();
     });
+}
+function init() {
+    process.on('SIGINT', dumpAndExit);
+    process.on('SIGTERM', dumpAndExit);
 }
 
 module.exports = {

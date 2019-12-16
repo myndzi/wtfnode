@@ -14,12 +14,21 @@ var child = cp.fork(PATH.join(__dirname, 'index.js'), process.argv.slice(2), {
     env: process.env
 });
 
+child.on('exit', function () {
+    process.exit(0);
+});
+
 var count = 0;
 process.on('SIGINT', function () {
+    child.kill('SIGINT');
     count++;
     if (count > 1) {
         console.error('Forcefully terminating, unable to gather process info');
         child.kill();
         process.exit(1);
     }
+});
+
+process.on('SIGTERM', function () {
+    child.kill('SIGTERM');
 });
