@@ -552,11 +552,11 @@ function dump() {
             }
 
             if (a) {
-                if(typeof a === "string"){
+                if (typeof a === "string") {
                     // IPC Socket
                     log('info', '  - %s (%s)', a, type);
-                }else{
-                    log('info', '  - %s:%s (%s)', a.address, a.port, type);   
+                } else {
+                    log('info', '  - %s:%s (%s)', a.address, a.port, type);
                 }
             } else {
                 log('info', '  - <unknown address>'); // closed / race condition?

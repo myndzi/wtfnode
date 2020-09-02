@@ -40,12 +40,21 @@ function doStuff() {
   http.createServer();
   net.createServer();
 
+  // ipc socket
+  net.createServer(function ipcListener() {
+  }).listen('/tmp/wtfnode-test');
+
   readline.createInterface({
     input: process.stdin,
     output: process.stdout
   });
 
   wtf.dump();
+
+  try {
+    fs.unlinkSync('/tmp/wtfnode-test');
+  } catch {
+  }
 
   console.error('Argv[2..]:', process.argv.slice(2));
   process.exit();
