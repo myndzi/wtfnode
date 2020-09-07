@@ -260,6 +260,7 @@ function setupAsyncHooks() {
         Readable = require('stream').Readable;
 
     var _EventEmitter_init = EventEmitter.init;
+    var _EventEmitter_listeners = EventEmitter.prototype.listeners;
 
     if (!DONT_INSTRUMENT['ChildProcess']) {
         // this will conveniently be run on new child processes
@@ -281,9 +282,9 @@ function setupAsyncHooks() {
     }
 
     function addListener(emitter, origMethod, type, cb) {
-        var before = emitter.listeners(type);
+        var before = _EventEmitter_listeners.call(emitter, type);
         var ret = origMethod.call(emitter, type, cb);
-        var after = emitter.listeners(type);
+        var after = _EventEmitter_listeners.call(emitter, type);
         var newListeners = after.filter(function(handler) {
             return before.indexOf(handler) === -1;
         });
