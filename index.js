@@ -79,7 +79,8 @@ function getRefSymbol() {
         });
     }
     var hook = async_hooks.createHook({
-        init: _getRefSymbol
+        init: _getRefSymbol,
+        destroy: _noop
     });
     hook.enable();
     var timer = setTimeout(_noop, 1000);
