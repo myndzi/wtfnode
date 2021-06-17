@@ -5,7 +5,6 @@ var ChildProcess,
     dgramSocket,
     HttpServer,
     HttpsServer,
-    child_process,
     cluster,
     path,
     Server,
@@ -28,15 +27,6 @@ function timerCallback(thing) {
     if (typeof thing._repeat === 'function') { return '_repeat'; }
     if (typeof thing._onTimeout === 'function') { return '_onTimeout'; }
     if (typeof thing._onImmediate === 'function') { return '_onImmediate'; }
-}
-
-function setPrototypeOf(obj, proto) {
-    if (Object.setPrototypeOf) {
-        return Object.setPrototypeOf(obj, proto);
-    } else {
-        obj.__proto__ = proto;
-        return obj;
-    }
 }
 
 var log = (function () {
@@ -80,7 +70,7 @@ function getRefSymbol() {
     }
     var hook = async_hooks.createHook({
         init: _getRefSymbol,
-        destroy: _noop
+        destroy: _noop // node 16.2.0+ crashes without this
     });
     hook.enable();
     var timer = setTimeout(_noop, 1000);
@@ -399,7 +389,6 @@ function formatTime(t) {
     return Math.floor(t) + ' ' + labels[i-1];
 };
 
-var count = 0;
 function getCallsite(thing) {
     if (!thing.__callSite) {
         var name = ((thing.name ? thing.name : thing.constructor.name) || '(anonymous)').trim();
