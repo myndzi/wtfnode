@@ -40,7 +40,7 @@ declare -a versions=(
 test_version () {
   nvm install "$1" >/dev/null 2>/dev/null
   nvm use "$1"     >/dev/null
-  npm test         >/dev/null
+  npm test         >/dev/null 2>/dev/null
 }
 
 for ver in "${versions[@]}"; do
