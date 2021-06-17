@@ -12,32 +12,32 @@ function testEventEmitter() {
     numTimesEventHandlerWasCalled += 1;
   };
   em = emitter.addListener('myEvent', myEventHandler);
-  assert.equal(em, emitter, 'emitter.addListener should return `this`');
+  assert.strictEqual(emitter, em, 'emitter.addListener should return `this`');
   emitter.emit('myEvent');
-  assert.equal(1, numTimesEventHandlerWasCalled, 'Handler should be called once');
+  assert.strictEqual(numTimesEventHandlerWasCalled, 1, 'Handler should be called once');
   // Check that removeListener still works:
   emitter.removeListener('myEvent', myEventHandler);
   emitter.emit('myEvent');
-  assert.equal(1, numTimesEventHandlerWasCalled, 'Handler should not be called after removing');
+  assert.strictEqual(numTimesEventHandlerWasCalled, 1, 'Handler should not be called after removing');
 
   // Check that .once works
   numTimesEventHandlerWasCalled = 0;
   em = emitter.once('myEvent', myEventHandler);
-  assert.equal(em, emitter, 'emitter.once should return `this`');
+  assert.strictEqual(emitter, em, 'emitter.once should return `this`');
   emitter.emit('myEvent');
 
-  assert.equal(1, numTimesEventHandlerWasCalled, 'Handler should be called once');
-  assert.equal(0, emitter.listeners('myEvent').length, 'Listener should not exist anymore');
+  assert.strictEqual(numTimesEventHandlerWasCalled, 1, 'Handler should be called once');
+  assert.strictEqual(emitter.listeners('myEvent').length, 0, 'Listener should not exist anymore');
 
   emitter.emit('myEvent');
-  assert.equal(1, numTimesEventHandlerWasCalled, 'Handler should not be called after removing');
+  assert.strictEqual(numTimesEventHandlerWasCalled, 1, 'Handler should not be called after removing');
 
   // Check that removeListener works on a .once handler before it is called
   numTimesEventHandlerWasCalled = 0;
   emitter.once('myEvent', myEventHandler);
   emitter.removeListener('myEvent', myEventHandler);
   emitter.emit('myEvent');
-  assert.equal(0, numTimesEventHandlerWasCalled, 'Handler should not be called');
+  assert.strictEqual(numTimesEventHandlerWasCalled, 0, 'Handler should not be called');
 }
 
 testEventEmitter();
