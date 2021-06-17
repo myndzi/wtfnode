@@ -14,7 +14,20 @@ var PassThrough = require('stream').PassThrough,
     stream.write('foo');
     stream.write('bar');
 
-    assert.strictEqual(1, count, 'Handler should be called once, got '+count);
+    assert.strictEqual(count, 1, 'Handler should be called once, got ' + count);
+    count = 0;
+
+    // Node 16.2(?) evidences some odd behavior here. Streams don't write synchronously
+    // the ... second time?
+    stream.once('data', function (c) {
+        count++;
+    });
+    stream.write('baz');
+
+    setImmediate(function () {
+        // but they do get written eventually
+        assert.strictEqual(count, 1, 'Handler should be called once, got ' + count);
+    });
 })();
 
 (function () {
@@ -26,5 +39,5 @@ var PassThrough = require('stream').PassThrough,
     stream.write('foo');
     stream.write('bar');
 
-    assert.strictEqual(2, count, 'Handler should be called twice, got '+count);
+    assert.strictEqual(count, 2, 'Handler should be called twice, got ' + count);
 })();
