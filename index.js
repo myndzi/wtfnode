@@ -106,13 +106,60 @@ function setupAsyncHooks() {
 
 // hook stuff
 (function () {
-    var hooked = function (_, stack) { return stack; };
+    var getStackFrames = function (_, stack) { return stack; };
+    var getMappedStackFrames = function (_, stack) {
+        // attempt to use source-map-support to process any source map info
+
+        // This is copy-pasted from part of source-map-support's implementation
+        // of prepareStackTrace. We're interested in the data, which we filter
+        // for the first/likely relevant call site. We don't want to un-stringify
+        // and parse the (string) return value of prepareStackTrace itself.
+        var state = { nextPosition: null, curPosition: null };
+
+        for (var i = stack.length - 1; i >= 0; i--) {
+            stack[i] = sms.wrapCallSite(stack[i], state);
+            state.nextPosition = state.curPosition;
+        }
+        state.curPosition = state.nextPosition = null;
+        return stack;
+    }
+
+    var sms = null;
+    // we don't want to load any modules until we've hooked everything
+    // this function defers loading `source-map-support`, and also tests
+    // that it functions as expected. since we don't directly depend on
+    // that module, it could have any version and the api could break in
+    // the future. if that happens, we just behave as though it wasn't
+    // present, and the user's code will continue to be mapped -- only
+    // wtfnode source line attribution will not be.
+    function loadSMS() {
+        if (sms !== null) { return; }
+        var _Error_prepareStackTrace = Error.prepareStackTrace;
+        try {
+            sms = require('source-map-support');
+            Error.prepareStackTrace = getMappedStackFrames;
+            (new Error('synthetic')).stack;
+            Error.prepareStackTrace = _Error_prepareStackTrace;
+            getStackFrames = getMappedStackFrames;
+            return;
+        } catch (e) {
+            Error.prepareStackTrace = _Error_prepareStackTrace;
+            sms = false;
+            log('warn', 'error getting source-mapped stack -- did the api change?');
+        }
+    }
 
     function getStack() {
+        loadSMS();
+
+        // capture whatever the current prepareStackTrace is when we call this function...
         var _Error_prepareStackTrace = Error.prepareStackTrace;
-        Error.prepareStackTrace = hooked;
-        var err = new Error();
-        var stack = err.stack.map(function (item) {
+        Error.prepareStackTrace = getStackFrames;
+        var unprocessedStack = (new Error('synthetic')).stack;
+        // set it back ASAP so any failures are handled normally
+        Error.prepareStackTrace = _Error_prepareStackTrace;
+
+        return unprocessedStack.map(function (item) {
             if (item.isEval()) {
                 var matched = item.getEvalOrigin().match(/\((.*):(\d*):(\d*)\)/) || {};
                 return {
@@ -127,8 +174,6 @@ function setupAsyncHooks() {
                 line: item.getLineNumber()
             };
         });
-        Error.prepareStackTrace = _Error_prepareStackTrace;
-        return stack;
     }
 
     function findCallsite(stack) {
@@ -144,7 +189,7 @@ function setupAsyncHooks() {
                 stack[i].file.indexOf(path.sep) !== -1 &&
                 stack[i].file.slice(0, 9) !== 'internal/'
             ) {
-              return stack[i];
+                return stack[i];
             }
         }
         return null;

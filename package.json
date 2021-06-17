@@ -1,6 +1,6 @@
 {
   "name": "wtfnode",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Utility to help find out why Node isn't exiting",
   "repository": {
     "type": "git",
@@ -13,7 +13,7 @@
     "README.md"
   ],
   "scripts": {
-    "test": "(cd tests && node test && node test-eval && node test-promise && node test-promisify && node test-logging && node test-once-flowing && node test-issue-37.js)",
+    "test": "(cd tests && node test && node test-eval && node test-promise && node test-promisify && node test-logging && node test-once-flowing && node test-issue-37.js && node test-no-source-map-support && node test-broken-source-map-support)",
     "test-sourcemaps": "(cd tests && coffee --map --compile test-sourcemaps.coffee && node test-sourcemaps.js || exit 0)",
     "kitchensink": "(cd tests && node kitchensink)"
   },
@@ -22,8 +22,8 @@
     "wtfnode": "proxy.js"
   },
   "license": "ISC",
-  "devDependencies": {
-    "coffee-script": "^1.12.7",
-    "source-map-support": "^0.5.3"
+  "dependencies": {
+    "coffeescript": "^2.5.1",
+    "source-map-support": "^0.5.19"
   }
 }
