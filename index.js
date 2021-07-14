@@ -137,6 +137,10 @@ function setupAsyncHooks() {
         var _Error_prepareStackTrace = Error.prepareStackTrace;
         try {
             sms = require('source-map-support');
+        } catch (e) {
+            return;
+        }
+        try {
             Error.prepareStackTrace = getMappedStackFrames;
             (new Error('synthetic')).stack;
             Error.prepareStackTrace = _Error_prepareStackTrace;
