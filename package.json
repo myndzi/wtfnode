@@ -22,7 +22,7 @@
     "wtfnode": "proxy.js"
   },
   "license": "ISC",
-  "dependencies": {
+  "devDependencies": {
     "coffeescript": "^2.5.1",
     "source-map-support": "^0.5.19"
   }
