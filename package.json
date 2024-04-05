@@ -13,7 +13,7 @@
     "README.md"
   ],
   "scripts": {
-    "test": "(cd tests && node test && node test-eval && node test-promise && node test-promisify && node test-logging && node test-once-flowing && node test-issue-37.js && node test-no-source-map-support && node test-broken-source-map-support)",
+    "test": "(cd tests && node test && node test-eval && node test-promise && node test-promisify && node test-logging && node test-once-flowing && node test-issue-37.js && node test-no-source-map-support && node test-broken-source-map-support && node test-http-client)",
     "test-sourcemaps": "(cd tests && coffee --map --compile test-sourcemaps.coffee && node test-sourcemaps.js || exit 0)",
     "kitchensink": "(cd tests && node kitchensink)"
   },

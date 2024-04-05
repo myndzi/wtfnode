@@ -560,6 +560,9 @@ function dump() {
             } else {
                 log('info', '  - unknown socket');
             }
+            if(s._httpMessage) {
+                log('info', '    - %s %s//%s%s', s._httpMessage.method, s._httpMessage.protocol, s._httpMessage.host, s._httpMessage.path);
+            }
             var connectListeners = s.listeners('connect');
             if (connectListeners && connectListeners.length) {
                 log('info', '    - Listeners:');
