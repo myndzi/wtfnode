@@ -561,7 +561,31 @@ function dump() {
                 log('info', '  - unknown socket');
             }
             if(s._httpMessage) {
-                log('info', '    - %s %s//%s%s', s._httpMessage.method, s._httpMessage.protocol, s._httpMessage.host, s._httpMessage.path);
+                var req = s._httpMessage || {};
+                var agent = req.agent || {};
+                var method = req.method || 'unknown';
+                var host = req.host || req.getHeader('host').replace(/:\d+$/, '');
+                var path = req.path || 'unknown';
+                var protocol = req.protocol || agent.protocol || (function () {
+                    var ctor = s.constructor && s.constructor.name;
+                    return ctor === 'CleartextStream' ? 'https:' : 'http:';
+                })() || 'unknown';
+                var port = s.remotePort || (protocol === 'https:' ? 443 : 80);
+
+                if (protocol === 'https:' && port !== 443) {
+                    host += ':' + port;
+                } else if (protocol === 'http:' && port !== 80) {
+                    host += ':' + port;
+                }
+
+                if (host.indexOf(':') > -1) {
+                    if (/:443/.test(host) && protocol === 'https:') {
+                        host = host.replace(/:443$/, '');
+                    } else if (/:80/.test(host) && protocol === 'http:') {
+                        host = host.replace(/:80$/, '');
+                    }
+                }
+                log('info', '    - %s %s//%s%s', method, protocol, host, path);
             }
             var connectListeners = s.listeners('connect');
             if (connectListeners && connectListeners.length) {
