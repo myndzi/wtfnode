@@ -564,7 +564,7 @@ function dump() {
                 var req = s._httpMessage || {};
                 var agent = req.agent || {};
                 var method = req.method || 'unknown';
-                var host = req.host || req.getHeader('host').replace(/:\d+$/, '');
+                var host = req.host || (req.getHeader('host') || '').replace(/:\d+$/, '');
                 var path = req.path || 'unknown';
                 var protocol = req.protocol || agent.protocol || (function () {
                     var ctor = s.constructor && s.constructor.name;
