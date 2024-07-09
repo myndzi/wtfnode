@@ -449,6 +449,43 @@ function getCallsite(thing) {
     return thing.__callSite;
 };
 
+function getProtocol(req, socket) {
+    if (typeof req.protocol === 'string') return req.protocol;
+    var agent = req.agent;
+    if (typeof agent.protocol === 'string') return agent.protocol;
+    var ctor = socket.constructor && socket.constructor.name;
+    return ctor === 'CleartextStream' ? 'https:' : 'http:';
+}
+function getHost(req) {
+    if (typeof req.host === 'string') return req.host;
+    if (typeof req.getHeader !== 'function') return 'unknown';
+    var hostHeader = req.getHeader('host');
+    if (typeof hostHeader === 'string') return hostHeader;
+    return 'unknown';
+}
+function getPort(socket, host, protocol) {
+    if (typeof socket.remotePort === 'number') return socket.remotePort;
+    var match = host.match(/:(\d+)$/);
+    if (match) {
+        var port = parseInt(match[1], 10);
+        if (!isNaN(match)) return port;
+    }
+    return protocol === 'https:' ? 443 : 80;
+}
+function getHttpInfo(socket) {
+    var req = socket._httpMessage || {};
+    var method = req.method || 'unknown';
+    var protocol = getProtocol(req, socket);
+    var host = getHost(req);
+    var port = getPort(socket, host, protocol);
+    var path = req.path || 'unknown';
+    host = host.replace(/:\d+$/, '');
+    if ((protocol === 'https:' && port !== 443) || (protocol === 'http:' && port !== 80)) {
+        host += ':' + port;
+    }
+    return { method: method, protocol: protocol, host: host, port: port, path: path };
+}
+
 function dump() {
     log('info', '[WTF Node?] open handles:');
 
@@ -560,32 +597,9 @@ function dump() {
             } else {
                 log('info', '  - unknown socket');
             }
-            if(s._httpMessage) {
-                var req = s._httpMessage || {};
-                var agent = req.agent || {};
-                var method = req.method || 'unknown';
-                var host = req.host || req.getHeader('host').replace(/:\d+$/, '');
-                var path = req.path || 'unknown';
-                var protocol = req.protocol || agent.protocol || (function () {
-                    var ctor = s.constructor && s.constructor.name;
-                    return ctor === 'CleartextStream' ? 'https:' : 'http:';
-                })() || 'unknown';
-                var port = s.remotePort || (protocol === 'https:' ? 443 : 80);
-
-                if (protocol === 'https:' && port !== 443) {
-                    host += ':' + port;
-                } else if (protocol === 'http:' && port !== 80) {
-                    host += ':' + port;
-                }
-
-                if (host.indexOf(':') > -1) {
-                    if (/:443/.test(host) && protocol === 'https:') {
-                        host = host.replace(/:443$/, '');
-                    } else if (/:80/.test(host) && protocol === 'http:') {
-                        host = host.replace(/:80$/, '');
-                    }
-                }
-                log('info', '    - %s %s//%s%s', method, protocol, host, path);
+            if (s._httpMessage) {
+                var i = getHttpInfo(s);
+                log('info', '    - %s %s//%s%s', i.method, i.protocol, i.host, i.path);
             }
             var connectListeners = s.listeners('connect');
             if (connectListeners && connectListeners.length) {
