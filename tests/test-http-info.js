@@ -21,6 +21,38 @@ wtf.setLogger("info", function (log) {
   logs.push(log);
 });
 
+function testIssue50(cb) {
+  var httpServer = http.createServer(function (req, res) {
+    res.writeHead(200);
+    res.end();
+  });
+
+  httpServer.listen(0, function () {
+    var port = httpServer.address().port;
+    http
+      .request(
+        { method: "POST", host: "localhost", port: port, path: "/the-path" },
+        function () {
+          Object.defineProperty(this.socket, "remotePort", { value: null });
+          this.host = null;
+          this.getHeader = function () {};
+          wtf.dump();
+          if (
+            logs.some(function (l) {
+              return l === "    - POST http://(unknown)/the-path";
+            })
+          ) {
+            httpServer.close();
+            cb();
+          } else {
+            throw new Error("Expected detailed http log");
+          }
+        }
+      )
+      .end();
+  });
+}
+
 function testHttp(cb) {
   var httpServer = http.createServer(function (req, res) {
     res.writeHead(200);
@@ -122,7 +154,13 @@ function testDefaultPortHttps(cb) {
   });
 }
 
-[testDefaultPortHttp, testDefaultPortHttps, testHttp, testHttps].reduce(
+[
+  //   testDefaultPortHttp,
+  //   testDefaultPortHttps,
+  //   testHttp,
+  //   testHttps,
+  testIssue50,
+].reduce(
   function (acc, cur) {
     return function () {
       process.stdout.write(cur.name + ": ");

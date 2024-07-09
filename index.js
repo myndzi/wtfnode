@@ -461,7 +461,7 @@ function getHost(req) {
     if (typeof req.getHeader !== 'function') return 'unknown';
     var hostHeader = req.getHeader('host');
     if (typeof hostHeader === 'string') return hostHeader;
-    return 'unknown';
+    return '(unknown)';
 }
 function getPort(socket, host, protocol) {
     if (typeof socket.remotePort === 'number') return socket.remotePort;
