@@ -452,7 +452,7 @@ function getCallsite(thing) {
 function getProtocol(req, socket) {
     if (typeof req.protocol === 'string') return req.protocol;
     var agent = req.agent;
-    if (typeof agent.protocol === 'string') return agent.protocol;
+    if (agent && typeof agent.protocol === 'string') return agent.protocol;
     var ctor = socket.constructor && socket.constructor.name;
     return ctor === 'CleartextStream' ? 'https:' : 'http:';
 }
