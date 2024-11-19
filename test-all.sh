@@ -45,6 +45,8 @@ declare -a versions=(
   "20"
   "21.0.0"
   "21"
+  "22.0.0"
+  "22"
 )
 
 test_version () {
