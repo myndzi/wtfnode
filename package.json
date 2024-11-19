@@ -1,6 +1,6 @@
 {
   "name": "wtfnode",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "Utility to help find out why Node isn't exiting",
   "repository": {
     "type": "git",
@@ -25,5 +25,8 @@
   "devDependencies": {
     "coffeescript": "^2.5.1",
     "source-map-support": "^0.5.19"
+  },
+  "engines": {
+    "node": ">=0.10.0"
   }
 }
