@@ -61,11 +61,13 @@ function doStuff() {
     output: process.stdout,
   });
 
-  wtf.dump();
+  wtf.dump({
+    fullStacks: true,
+  });
 
   try {
     fs.unlinkSync("/tmp/wtfnode-test");
-  } catch {}
+  } catch (e) {}
 
   console.error("Argv[2..]:", process.argv.slice(2));
   process.exit();

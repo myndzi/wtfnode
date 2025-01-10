@@ -59,7 +59,9 @@ for ver in "${versions[@]}"; do
   if test_version "$ver"; then
     echo "$ver: ok"
   else
+    npm test
     echo "$ver: failed"
+    break
   fi
 done
 
