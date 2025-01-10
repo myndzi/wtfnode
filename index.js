@@ -584,7 +584,7 @@ function dump(options) {
                 keypressListeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
                     var stack;
-                    if (options.fullStacks && (stack = getRenderedStack(fn))) {
+                    if (options.fullStacks && (stack = getRenderedStack(fn, 4))) {
                         log('info', '      - %s: %s%s', 'keypress', fn.name || fn.__name || callSite.name || '(anonymous)', stack);
                     } else {
                         log('info', '      - %s: %s @ %s:%d', 'keypress', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
