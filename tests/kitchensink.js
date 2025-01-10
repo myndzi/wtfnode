@@ -64,6 +64,7 @@ function doStuff() {
   wtf.dump({
     fullStacks: true,
   });
+  wtf.dump();
 
   try {
     fs.unlinkSync("/tmp/wtfnode-test");
