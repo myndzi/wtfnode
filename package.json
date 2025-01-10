@@ -4,7 +4,7 @@
   "description": "Utility to help find out why Node isn't exiting",
   "repository": {
     "type": "git",
-    "url": "https://github.com/myndzi/wtfnode"
+    "url": "git+https://github.com/myndzi/wtfnode.git"
   },
   "main": "index.js",
   "files": [
