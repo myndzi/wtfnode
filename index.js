@@ -310,7 +310,7 @@ function setupAsyncHooks() {
         EventEmitter.init = function () {
             var callSite = findCallsite(getStack());
             if (callSite && !this.hasOwnProperty('__callSite')) {
-                const stack = getStack();
+                var stack = getStack();
                 Object.defineProperties(this, {
                     __fullStack: {
                         enumerable: false,
