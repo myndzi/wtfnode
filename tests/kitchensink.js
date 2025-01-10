@@ -16,10 +16,10 @@ function foo() {}
 
 function doStuff() {
   // timers
-  setTimeout(foo, 1000);
-  setInterval(foo, 1000);
-  setTimeout(function inlineNamed() {}, 1000);
-  setTimeout(function () {}, 1000);
+  setTimeout(foo, 550);
+  setInterval(foo, 2500);
+  setTimeout(function inlineNamed() {}, 90*1000);
+  setTimeout(function () {}, 2.5*3600*1000);
 
   // servers
   var httpServer = http
