@@ -793,9 +793,9 @@ function dump(options) {
             var callSite = getCallsite(fn);
             var stack;
             if (options.fullStacks && (stack = getRenderedStack(fn, 2))) {
-                log('info', '  - (%d ~ %s) @ %s%s', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', stack);
+                log('info', '  - (%d ~ %s) %s%s', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', stack);
             } else {
-                log('info', '  - (%d ~ %s) @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+                log('info', '  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
             }
         });
     }
@@ -808,9 +808,9 @@ function dump(options) {
             var callSite = getCallsite(fn);
             var stack;
             if (options.fullStacks && (stack = getRenderedStack(fn, 2))) {
-                log('info', '  - (%d ~ %s) @ %s%s', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', stack);
+                log('info', '  - (%d ~ %s) %s%s', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', stack);
             } else {
-                log('info', '  - (%d ~ %s) @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+                log('info', '  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
             }
         });
     }
