@@ -461,8 +461,8 @@ function formatTime(t) {
         units = [1, 1000, 60, 60],
         i = 0;
 
-    while (i < units.length && t / units[i] > 1) { t /= units[i++]; }
-    return Math.floor(t) + ' ' + labels[i-1];
+    while (i < units.length && t / units[i] >= 1) { t /= units[i++]; }
+    return (Math.round(t*10)/10) + ' ' + labels[i-1];
 }
 
 function getCallsite(thing) {
