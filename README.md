@@ -44,11 +44,14 @@ When using wtfnode from a child process, on version 0.12 there is some strange b
 
 # Command line usage
 
-You can install as a global module (`npm install -g wtfnode`) and call a node script manually: `wtfnode <yourscript> <yourargs> ...`
+You can install as a global module (`npm install -g wtfnode`) and call a node script manually: `wtfnode [OPTION...] <yourscript> <yourargs> ...`
 
 If you do this, `wtfnode` will load itself, then forward control to the script you specified as if you had run `node <yourscript> ...`. When you are ready, send SIGINT (Ctrl+C). The process will exit, and the active handles at the time of exit will be printed out.
 
 Version 0.4.0: When a module has bound SIGINT, Node will no longer be able to exit when in an infinite loop. `wtfnode` now instead launches the target by way of a watchdog proxy; you may now Ctrl+C twice to force termination. No information will be available, since no other code can be run while an infinite loop is executing, but this should at least make life a little easier.
+
+## Options
+- `--fullstacks` Include full stack traces in output
 
 # Module usage
 
@@ -57,6 +60,14 @@ Install as a local module (`npm install wtfnode`).
 Require the module: `var wtf = require('wtfnode');`
 
 When you are ready, call `wtf.dump()` to dump open handles. Note that if you call this from a timer, the timer itself may show up!
+
+If you wish you can customize the output from `wtf.dump()` like so:
+```javascript
+wtf.dump({
+	fullStacks: true, // Include full stack traces in output, default is false
+});
+```
+
 
 **Important**: Require at the entry point of your application. You must do this before loading / referencing even native node modules, or certain hooks may not be effective.
 
