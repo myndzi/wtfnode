@@ -23,6 +23,8 @@ var _console_log = console.log.bind(console),
     _console_warn = console.warn.bind(console),
     _console_error = console.error.bind(console);
 
+var dumpOptions = {};
+
 function timerCallback(thing) {
     if (typeof thing._repeat === 'function') { return '_repeat'; }
     if (typeof thing._onTimeout === 'function') { return '_onTimeout'; }
@@ -175,7 +177,8 @@ function setupAsyncHooks() {
             return {
                 name: item.getFunctionName(),
                 file: item.getFileName(),
-                line: item.getLineNumber()
+                line: item.getLineNumber(),
+                column: item.getColumnNumber()
             };
         });
     }
@@ -307,12 +310,19 @@ function setupAsyncHooks() {
         EventEmitter.init = function () {
             var callSite = findCallsite(getStack());
             if (callSite && !this.hasOwnProperty('__callSite')) {
+                var stack = getStack();
                 Object.defineProperties(this, {
+                    __fullStack: {
+                        enumerable: false,
+                        configurable: false,
+                        writable: false,
+                        value: stack
+                    },
                     __callSite: {
                         enumerable: false,
                         configurable: false,
                         writable: false,
-                        value: findCallsite(getStack())
+                        value: findCallsite(stack)
                     }
                 });
             }
@@ -343,7 +353,9 @@ function setupAsyncHooks() {
 
                 var type = args[0], fn = args[1];
 
-                var callSite = wrapFn(args[1], args[1].name, null).__callSite;
+                var wrapped = wrapFn(args[1], args[1].name, null);
+                var fullStack = wrapped.__fullStack;
+                var callSite = wrapped.__callSite;
 
                 var res = addListener(this, origMethod, type, fn);
                 var ret = res[0], newListeners = res[1];
@@ -356,6 +368,14 @@ function setupAsyncHooks() {
                     // we wind up with a reference to (wrapped or unwrapped, etc.)
                     // in getActiveHandles, it should have the info we want.
                     while (listener && !listener.hasOwnProperty('__callSite')) {
+                        Object.defineProperties(listener, {
+                            __fullStack: {
+                                enumerable: false,
+                                configurable: false,
+                                writable: false,
+                                value: fullStack
+                            }
+                        });
                         Object.defineProperties(listener, {
                             __callSite: {
                                 enumerable: false,
@@ -409,12 +429,19 @@ function setupAsyncHooks() {
         // we get an open handle for a pipe, but no reference to the
         // worker itself, so we add one, as well as the call site info
         if (worker && worker.process && worker.process._channel) {
+            var fullStack = getStack();
             Object.defineProperties(worker.process._channel, {
+                __fullStack: {
+                    enumerable: false,
+                    configurable: false,
+                    writable: false,
+                    value: fullStack
+                },
                 __callSite: {
                     enumerable: false,
                     configurable: false,
                     writable: false,
-                    value: findCallsite(getStack())
+                    value: findCallsite(fullStack)
                 },
                 __worker: {
                     enumerable: false,
@@ -436,7 +463,7 @@ function formatTime(t) {
 
     while (i < units.length && t / units[i] > 1) { t /= units[i++]; }
     return Math.floor(t) + ' ' + labels[i-1];
-};
+}
 
 function getCallsite(thing) {
     if (!thing.__callSite) {
@@ -447,7 +474,26 @@ function getCallsite(thing) {
         return { name: '(anonymous)', file: 'unknown', line: 0 };
     }
     return thing.__callSite;
-};
+}
+
+function getRenderedStack(thing, level) {
+    if (!thing.__fullStack) {
+        return '';
+    }
+    var head = '\n';
+    while (level--) {
+        head += '  ';
+    }
+    var stack = '';
+    for (var i = 0; i < thing.__fullStack.length; ++i) {
+        var frame = thing.__fullStack[i];
+        if (frame.file === __filename) {
+            continue;
+        }
+        stack += head + 'at ' + (frame.name || '(anonymous)') + ' (' + (frame.file || 'internal') + (frame.line != null ? ':' + frame.line + (frame.column != null ? ':' + frame.column : '') : '') + ')';
+    }
+    return stack;
+}
 
 function getProtocol(req, socket) {
     if (typeof req.protocol === 'string') return req.protocol;
@@ -486,7 +532,8 @@ function getHttpInfo(socket) {
     return { method: method, protocol: protocol, host: host, port: port, path: path };
 }
 
-function dump() {
+function dump(options) {
+    options = options || {nopts: true};
     log('info', '[WTF Node?] open handles:');
 
     // sort the active handles into different types for logging
@@ -536,7 +583,13 @@ function dump() {
                 log('info', '    - Listeners:');
                 keypressListeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
-                    log('info', '      - %s: %s @ %s:%d', 'keypress', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+                    var stack;
+                    if (options.fullStacks && (stack = getRenderedStack(fn, 4))) {
+                        log('info', '      - %s: %s%s', 'keypress', fn.name || fn.__name || callSite.name || '(anonymous)', stack);
+                    } else {
+                        log('info', '      - %s: %s @ %s:%d', 'keypress', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+                    }
+
                 });
             }
         });
@@ -558,7 +611,12 @@ function dump() {
             log('info', '  - PID %s', cp.pid);
             if (!DONT_INSTRUMENT['ChildProcess']) {
                 var callSite = getCallsite(cp);
-                log('info', '    - Entry point: %s:%d', callSite.file, callSite.line);
+                var stack;
+                if (options.fullStacks && (stack = getRenderedStack(cp, 3))) {
+                    log('info', '    - Entry point: %s', stack);
+                } else {
+                    log('info', '    - Entry point: %s:%d', callSite.file, callSite.line);
+                }
             }
             if (cp.stdio && cp.stdio.length) {
                 cp.stdio.forEach(function (s) {
@@ -581,7 +639,12 @@ function dump() {
             var fds = [ ], cp = cw.__worker.process;
             log('info', '  - PID %s', cp.pid);
             var callSite = getCallsite(cw);
-            log('info', '    - Entry point: %s:%d', callSite.file, callSite.line);
+            var stack;
+            if (options.fullStacks && (stack = getRenderedStack(cw, 3))) {
+                log('info', '    - Entry point: %s', stack);
+            } else {
+                log('info', '    - Entry point: %s:%d', callSite.file, callSite.line);
+            }
         });
     }
 
@@ -606,7 +669,12 @@ function dump() {
                 log('info', '    - Listeners:');
                 connectListeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
-                    log('info', '      - %s: %s @ %s:%d', 'connect', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+                    var stack;
+                    if (options.fullStacks && (stack = getRenderedStack(fn, 4))) {
+                        log('info', '      - %s: %s%s', 'connect', fn.name || fn.__name || callSite.name || '(anonymous)', stack);
+                    } else {
+                        log('info', '      - %s: %s @ %s:%d', 'connect', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+                    }
                 });
             }
         });
@@ -656,7 +724,12 @@ function dump() {
                 log('info', '    - Listeners:');
                 listeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
-                    log('info', '      - %s: %s @ %s:%d', eventType, fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+                    var stack;
+                    if (options.fullStacks && (stack = getRenderedStack(fn, 4))) {
+                        log('info', '      - %s: %s%s', eventType, fn.name || fn.__name || callSite.name || '(anonymous)', stack);
+                    } else {
+                        log('info', '      - %s: %s @ %s:%d', eventType, fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+                    }
                 });
             }
         });
@@ -716,10 +789,14 @@ function dump() {
         log('info', '- Timers:');
 
         timers.forEach(function (t) {
-            var fn = t[timerCallback(t)],
-                callSite = getCallsite(fn);
-
-            log('info', '  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+            var fn = t[timerCallback(t)];
+            var callSite = getCallsite(fn);
+            var stack;
+            if (options.fullStacks && (stack = getRenderedStack(fn, 2))) {
+                log('info', '  - (%d ~ %s) @ %s%s', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', stack);
+            } else {
+                log('info', '  - (%d ~ %s) @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+            }
         });
     }
 
@@ -727,10 +804,14 @@ function dump() {
         log('info', '- Intervals:');
 
         intervals.forEach(function (t) {
-            var fn = t[timerCallback(t)],
-                callSite = getCallsite(fn);
-
-            log('info', '  - (%d ~ %s) %s @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name, callSite.file, callSite.line);
+            var fn = t[timerCallback(t)];
+            var callSite = getCallsite(fn);
+            var stack;
+            if (options.fullStacks && (stack = getRenderedStack(fn, 2))) {
+                log('info', '  - (%d ~ %s) @ %s%s', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', stack);
+            } else {
+                log('info', '  - (%d ~ %s) @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
+            }
         });
     }
 
@@ -756,7 +837,7 @@ function isChannel(obj) {
 function dumpAndExit() {
     // let other potential handlers run before exiting
     process.nextTick(function () {
-        try { dump(); }
+        try { dump(dumpOptions); }
         catch (e) { log('error', e); }
         process.exit();
     });
@@ -775,12 +856,25 @@ module.exports = {
 
 function parseArgs() {
     if (process.argv.length < 3) {
-        log('error', 'Usage: wtfnode <yourscript> <yourargs> ...');
+        log('error', 'Usage: wtfnode [--fullstacks] <yourscript> <yourargs> ...');
         process.exit(1);
     }
-    var moduleParams = process.argv.slice(3);
-    var modulePath = path.resolve(process.cwd(), process.argv[2]);
-    return [].concat(process.argv[0], modulePath, moduleParams);
+    var offset = 0;
+    // Very poor-man's argument parsing.
+    // Could be extended to more options using something like process.argv.indexOf(),
+    // but care should be taken that we're not mistaking arguments meant for the child module as arguments meant for wtfnode.
+    var fullStacks = process.argv[2] === '--fullstacks';
+    if (fullStacks) {
+        ++offset;
+    }
+    var moduleParams = process.argv.slice(3 + offset);
+    var modulePath = path.resolve(process.cwd(), process.argv[2 + offset]);
+    return {
+        newArgV: [].concat(process.argv[0], modulePath, moduleParams),
+        options: {
+            fullStacks: fullStacks,
+        }
+    };
 }
 
 if (module === require.main) {
@@ -789,7 +883,9 @@ if (module === require.main) {
     // identical as possible to invoking `node <the_module>` directly.
     // This means massaging process.argv and using Module.runMain to convince
     // the module that it is the 'main' module.
-    var newArgv = parseArgs(process.argv);
+    var parsedArgs = parseArgs(process.argv);
+    var newArgv = parsedArgs.newArgV;
+    dumpOptions = parsedArgs.options;
     var Module = require('module');
     process.argv = newArgv;
     Module.runMain();

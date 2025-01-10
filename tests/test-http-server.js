@@ -10,7 +10,7 @@ wtf.setLogger("info", function (log) {
 
 var server = http.createServer(function (req) {
   wtf.dump();
-  const lines = logs.join("\t");
+  var lines = logs.join("\t");
   if (/Servers:.*?(HTTP).*?Listeners:.*?request:.*http-server.js/.test(lines)) {
     process.exit(0);
   } else {
