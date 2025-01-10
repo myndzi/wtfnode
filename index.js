@@ -476,13 +476,23 @@ function getCallsite(thing) {
     return thing.__callSite;
 }
 
-function getFullStack(thing) {
+function getRenderedStack(thing, level) {
     if (!thing.__fullStack) {
-        return [];
+        return '';
     }
-    return thing.__fullStack.filter(function(frame) {
-        return frame.file !== __filename;
-    });
+    var head = '\n';
+    while (level--) {
+        head += '  ';
+    }
+    var stack = '';
+    for (var i = 0; i < thing.__fullStack.length; ++i) {
+        var frame = thing.__fullStack[i];
+        if (frame.file === __filename) {
+            continue;
+        }
+        stack += head + 'at ' + (frame.name || '(anonymous)') + ' (' + (frame.file || 'internal') + (frame.line != null ? ':' + frame.line + (frame.column != null ? ':' + frame.column : '') : '') + ')';
+    }
+    return stack;
 }
 
 function getProtocol(req, socket) {
@@ -520,10 +530,6 @@ function getHttpInfo(socket) {
         host += ':' + port;
     }
     return { method: method, protocol: protocol, host: host, port: port, path: path };
-}
-
-function renderStackFrame(frame) {
-    return '\n    at ' + (frame.name || '(anonymous)') + ' (' + (frame.file || 'internal') + (frame.line != null ? ':' + frame.line + (frame.column != null ? ':' + frame.column : '') : '') + ')';
 }
 
 function dump(options) {
@@ -578,8 +584,8 @@ function dump(options) {
                 keypressListeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
                     var stack;
-                    if (options.fullStacks && (stack = getFullStack(fn))) {
-                        log('info', '      - %s: %s%s', 'keypress', fn.name || fn.__name || callSite.name || '(anonymous)', stack.map(renderStackFrame).join(''));
+                    if (options.fullStacks && (stack = getRenderedStack(fn))) {
+                        log('info', '      - %s: %s%s', 'keypress', fn.name || fn.__name || callSite.name || '(anonymous)', stack);
                     } else {
                         log('info', '      - %s: %s @ %s:%d', 'keypress', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
                     }
@@ -606,8 +612,8 @@ function dump(options) {
             if (!DONT_INSTRUMENT['ChildProcess']) {
                 var callSite = getCallsite(cp);
                 var stack;
-                if (options.fullStacks && (stack = getFullStack(cp))) {
-                    log('info', '    - Entry point: %s', stack.map(renderStackFrame).join(''));
+                if (options.fullStacks && (stack = getRenderedStack(cp, 3))) {
+                    log('info', '    - Entry point: %s', stack);
                 } else {
                     log('info', '    - Entry point: %s:%d', callSite.file, callSite.line);
                 }
@@ -634,8 +640,8 @@ function dump(options) {
             log('info', '  - PID %s', cp.pid);
             var callSite = getCallsite(cw);
             var stack;
-            if (options.fullStacks && (stack = getFullStack(cw))) {
-                log('info', '    - Entry point: %s', stack.map(renderStackFrame).join(''));
+            if (options.fullStacks && (stack = getRenderedStack(cw, 3))) {
+                log('info', '    - Entry point: %s', stack);
             } else {
                 log('info', '    - Entry point: %s:%d', callSite.file, callSite.line);
             }
@@ -664,8 +670,8 @@ function dump(options) {
                 connectListeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
                     var stack;
-                    if (options.fullStacks && (stack = getFullStack(fn))) {
-                        log('info', '      - %s: %s%s', 'connect', fn.name || fn.__name || callSite.name || '(anonymous)', stack.map(renderStackFrame).join(''));
+                    if (options.fullStacks && (stack = getRenderedStack(fn, 4))) {
+                        log('info', '      - %s: %s%s', 'connect', fn.name || fn.__name || callSite.name || '(anonymous)', stack);
                     } else {
                         log('info', '      - %s: %s @ %s:%d', 'connect', fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
                     }
@@ -719,8 +725,8 @@ function dump(options) {
                 listeners.forEach(function (fn) {
                     var callSite = getCallsite(fn);
                     var stack;
-                    if (options.fullStacks && (stack = getFullStack(fn))) {
-                        log('info', '      - %s: %s%s', eventType, fn.name || fn.__name || callSite.name || '(anonymous)', stack.map(renderStackFrame).join(''));
+                    if (options.fullStacks && (stack = getRenderedStack(fn, 4))) {
+                        log('info', '      - %s: %s%s', eventType, fn.name || fn.__name || callSite.name || '(anonymous)', stack);
                     } else {
                         log('info', '      - %s: %s @ %s:%d', eventType, fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
                     }
@@ -786,8 +792,8 @@ function dump(options) {
             var fn = t[timerCallback(t)];
             var callSite = getCallsite(fn);
             var stack;
-            if (options.fullStacks && (stack = getFullStack(fn))) {
-                log('info', '  - (%d ~ %s) @ %s%s', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', stack.map(renderStackFrame).join(''));
+            if (options.fullStacks && (stack = getRenderedStack(fn, 2))) {
+                log('info', '  - (%d ~ %s) @ %s%s', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', stack);
             } else {
                 log('info', '  - (%d ~ %s) @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
             }
@@ -801,8 +807,8 @@ function dump(options) {
             var fn = t[timerCallback(t)];
             var callSite = getCallsite(fn);
             var stack;
-            if (options.fullStacks && (stack = getFullStack(fn))) {
-                log('info', '  - (%d ~ %s) @ %s%s', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', stack.map(renderStackFrame).join(''));
+            if (options.fullStacks && (stack = getRenderedStack(fn, 2))) {
+                log('info', '  - (%d ~ %s) @ %s%s', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', stack);
             } else {
                 log('info', '  - (%d ~ %s) @ %s:%d', t._idleTimeout, formatTime(t._idleTimeout), fn.name || fn.__name || callSite.name || '(anonymous)', callSite.file, callSite.line);
             }
