@@ -198,6 +198,15 @@ function setupAsyncHooks() {
             ) {
                 return stack[i];
             }
+
+            if (stack[i].name === null) {
+                // treat the first stack frame with no function name
+                // as the entry point. this will reveal repl / vm contexts,
+                // or the filename of the module that was run directly.
+                // we'll store this and return it if we don't find anything
+                // more appropriate
+                return stack[i];
+            }
         }
         return null;
     }

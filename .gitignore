@@ -1,3 +1,4 @@
+/.vscode
 /node_modules
 /tests/test-sourcemaps.js
 /tests/test-sourcemaps.js.map
